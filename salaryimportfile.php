@@ -227,7 +227,10 @@ try {
 		$TData[$row]['pdf'] = '';
 		foreach ($pdfs as $pdf) {
 			$found = false;
-			if (in_array(strtolower($firstname), $pdf['links']) && in_array(strtolower($lastname), $pdf['links'])) {
+			if (
+				(in_array(strtolower($firstname), $pdf['links']) && in_array(strtolower($lastname), $pdf['links']))
+				|| (in_array(strtolower($firstname.' '.$lastname), $pdf['links']))
+			) {
 				$found = true;
 			}
 			if ($found) {
