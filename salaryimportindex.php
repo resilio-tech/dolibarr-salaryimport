@@ -258,7 +258,6 @@ print '</div>';
 print '<input type="submit" value="Envoyer">';
 print '<input type="hidden" name="token" value="'.newToken().'">';
 print '<input type="hidden" name="action" value="add">';
-print '<input type="hidden" name="backtopage" value="'.$backtopage.'">';
 print '</form>';
 print '</div>';
 

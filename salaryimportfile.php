@@ -149,7 +149,7 @@ try {
 
 		if (!dol_move_uploaded_file($zip['tmp_name'], $dir.'/'.$filename_zip, 1, 0 ,0)) throw new Exception('Erreur lors de l\'envoi du fichier zip de PDF');
 
-		$zip = new ZipArchive;
+		$zip = new ZipArchive();
 		$foldername_zip = substr($filename_zip, 0, strrpos($filename_zip, '.'));
 		if ($zip->open($dir.'/'.$filename_zip) === true) {
 			$zip->extractTo($dir.'/'.$foldername_zip);
@@ -177,14 +177,16 @@ try {
 		}
 	}
 
+	is_readable($dir.'/'.$filename_salary) or throw new Exception('Erreur lors de la lecture du fichier de salaire');
+
 	$reader = new Xlsx();
+	$reader->canRead($dir.'/'.$filename_salary) or throw new Exception('Erreur lors de la lecture du fichier de salaire');
 	$spreadsheet = $reader->load($dir.'/'.$filename_salary);
 
 	$sheet = $spreadsheet->getActiveSheet();
-	$rowCount = $sheet->getHighestRow();
 
-	$info = $reader->listWorksheetInfo($dir.'/'.$filename_salary);
-	$countColumns = $info[0]['totalColumns'];
+	$rowCount = $sheet->getHighestRow();
+	$countColumns = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::columnIndexFromString($sheet->getHighestColumn());
 
 	$headers = array();
 	for ($col = 1; $col <= $countColumns; $col++) {
@@ -379,7 +381,7 @@ try {
 	print '</table>';
 
 	$errors = array();
-
+/*
 	for ($row = 0; $row < count($TData); $row++) {
 		$userId = $TData[$row]['userId'];
 		$userName = $TData[$row]['userName'];
@@ -461,14 +463,26 @@ try {
 			$object
 		);
 	}
-	$db->commit();
-
-	if (count($errors) > 0) {
-		throw new Exception(implode('<br />', $errors));
+*/
+	print '<form method="POST" action="/custom/salaryimport/salaryimportconfirm.php" enctype="multipart/form-data">';
+	for ($row = 0; $row < count($TData); $row++) {
+		print '<input type="hidden" name="t_data['.$row.'][userId]" value="'.$TData[$row]['userId'].'">';
+		print '<input type="hidden" name="t_data['.$row.'][userName]" value="'.$TData[$row]['userName'].'">';
+		print '<input type="hidden" name="t_data['.$row.'][datep]" value="'.$TData[$row]['datep'].'">';
+		print '<input type="hidden" name="t_data['.$row.'][amount]" value="'.$TData[$row]['amount'].'">';
+		print '<input type="hidden" name="t_data['.$row.'][typepayment]" value="'.$TData[$row]['typepayment'].'">';
+		print '<input type="hidden" name="t_data['.$row.'][typepaymentcode]" value="'.$TData[$row]['typepaymentcode'].'">';
+		print '<input type="hidden" name="t_data['.$row.'][label]" value="'.$TData[$row]['label'].'">';
+		print '<input type="hidden" name="t_data['.$row.'][datesp]" value="'.$TData[$row]['datesp'].'">';
+		print '<input type="hidden" name="t_data['.$row.'][dateep]" value="'.$TData[$row]['dateep'].'">';
+		print '<input type="hidden" name="t_data['.$row.'][paye]" value="'.$TData[$row]['paye'].'">';
+		print '<input type="hidden" name="t_data['.$row.'][account]" value="'.$TData[$row]['account'].'">';
+		print '<input type="hidden" name="t_data['.$row.'][pdf]" value="'.$TData[$row]['pdf'].'">';
 	}
-
-	print '<p>Import terminé</p>';
-
+	print '<input type="submit" value="Envoyer">';
+	print '<input type="hidden" name="token" value="'.newToken().'">';
+	print '<input type="hidden" name="action" value="confirm">';
+	print '</form>';
 } catch (Exception $e) {
 	if (
 		!empty($filename_salary) and file_exists($dir.'/'.$filename_salary)
