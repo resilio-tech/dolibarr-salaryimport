@@ -226,11 +226,31 @@ try {
 			}
 		}
 
+		function removeAccents($string) {
+			return strtolower(
+				trim(
+					preg_replace(
+						'~[^0-9a-z]+~i',
+						'-',
+						preg_replace(
+							'~&([a-z]{1,2})(acute|cedil|circ|grave|lig|orn|ring|slash|th|tilde|uml);~i',
+							'$1',
+							htmlentities($string, ENT_QUOTES, 'UTF-8')
+						)
+					),
+					' '
+				)
+			);
+		}
+
 		$TData[$row]['pdf'] = '';
 		foreach ($pdfs as $pdf) {
 			$found = false;
 			if (
-				(in_array(strtolower($firstname), $pdf['links']) && in_array(strtolower($lastname), $pdf['links']))
+				(
+					in_array(removeAccents($firstname), array_map(function ($s) {return removeAccents($s);}, $pdf['links']))
+					&& in_array(removeAccents($lastname), array_map(function ($s) {return removeAccents($s);}, $pdf['links']))
+				)
 				|| (in_array(strtolower($firstname.' '.$lastname), $pdf['links']))
 			) {
 				$found = true;
@@ -264,7 +284,7 @@ try {
 		}
 
 		$amount = $lines[$row]['Montant'];
-		if (empty($amount)) {
+		if (empty($amount) && $amount !== '0' && $amount !== 0) {
 			$errors[] = 'Montant vide à la ligne '.($row + 1);
 		}
 		else {
