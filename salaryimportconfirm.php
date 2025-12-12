@@ -206,8 +206,8 @@ try {
 			$errors[] = $db->lasterror();
 			continue;
 		}
-
-		$paymentSalaryQuery = $db->query('INSERT INTO ' . MAIN_DB_PREFIX . 'payment_salary (ref, datep, amount, fk_typepayment, label, datesp, dateep, fk_user, fk_bank, fk_salary, fk_user_author) VALUES ("' . $refPayment . '", "' . $datep . '", "' . $amount . '", "' . $typepayment . '", "' . $label . '", "' . $datesp . '", "' . $dateep . '", "' . $userId . '", "' . $bank . '", "' . $salaryId . '" , "' . $user->id . '")');
+		$entity = DOLENTITY;
+		$paymentSalaryQuery = $db->query('INSERT INTO ' . MAIN_DB_PREFIX . 'payment_salary (ref, datep, amount, fk_typepayment, label, datesp, dateep, fk_user, fk_bank, fk_salary, fk_user_author, entity) VALUES ("' . $refPayment . '", "' . $datep . '", "' . $amount . '", "' . $typepayment . '", "' . $label . '", "' . $datesp . '", "' . $dateep . '", "' . $userId . '", "' . $bank . '", "' . $salaryId . '" , "' . $user->id . '" , "' . $entity . '")');
 		if (!$paymentSalaryQuery) {
 			$errors[] = 'Erreur lors de l\'insertion du paiement';
 			$errors[] = $db->lasterror();
