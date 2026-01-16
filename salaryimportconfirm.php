@@ -1,5 +1,4 @@
 <?php
-
 /* Copyright (C) 2001-2005 Rodolphe Quiedeville <rodolphe@quiedeville.org>
  * Copyright (C) 2004-2015 Laurent Destailleur  <eldy@users.sourceforge.net>
  * Copyright (C) 2005-2012 Regis Houssin        <regis.houssin@inodbox.com>
@@ -22,9 +21,8 @@
 /**
  *    \file       salaryimport/salaryimportconfirm.php
  *    \ingroup    salaryimport
- *    \brief      Home page of salaryimport top menu
+ *    \brief      Confirmation and execution page for salary import
  */
-
 
 $res = 0;
 // Try main.inc.php into web root known defined into CONTEXT_DOCUMENT_ROOT (not always defined)
@@ -63,7 +61,9 @@ if (!$res) {
 require_once DOL_DOCUMENT_ROOT . '/core/class/html.formfile.class.php';
 require_once DOL_DOCUMENT_ROOT . '/core/lib/files.lib.php';
 require_once DOL_DOCUMENT_ROOT . '/core/lib/functions2.lib.php';
-require_once DOL_DOCUMENT_ROOT . '/salaries/class/salary.class.php';
+
+// Load service classes
+require_once __DIR__.'/class/SalaryImportService.class.php';
 
 // Load translation files required by the page
 $langs->loadLangs(array("salaryimport@salaryimport"));
@@ -100,19 +100,17 @@ if (empty($user->admin)) {
 
 $form = new Form($db);
 $formfile = new FormFile($db);
-$object = new Salary($db);
 
 llxHeader("", $langs->trans("SalaryImportArea"));
 
-$filename_salary = GETPOST('filename_salary', 'alpha');
-$filename_zip = GETPOST('filename_zip', 'alpha');
-$foldername_zip = GETPOST('foldername_zip', 'alpha');
-$dir = DOL_DATA_ROOT.'/salaryimport';
-$pdfs = array();
 try {
 	$t_data = GETPOST('t_data', 'array');
-	$errors = array();
 
+	if (empty($t_data)) {
+		throw new Exception('Aucune donnée à importer');
+	}
+
+	// Display preview table
 	$labels = array(
 		'Nom du salarié',
 		'Date de paiement',
@@ -124,133 +122,58 @@ try {
 		'Payé',
 		'PDF'
 	);
+
 	print '<table class="noborder" width="100%">';
 	print '<tr class="liste_titre">';
 	foreach ($labels as $label) {
-		print '<td>' . $label . '</td>';
+		print '<td>' . htmlspecialchars($label) . '</td>';
 	}
 	print '</tr>';
-	for ($row = 0; $row < count($t_data); $row++) {
+
+	foreach ($t_data as $row) {
 		print '<tr class="oddeven">';
-		print '<td>' . $t_data[$row]['userName'] . '</td>';
-		print '<td>' . $t_data[$row]['datep'] . '</td>';
-		print '<td>' . $t_data[$row]['amount'] . '</td>';
-		print '<td>' . $t_data[$row]['typepaymentcode'] . '</td>';
-		print '<td>' . $t_data[$row]['label'] . '</td>';
-		print '<td>' . $t_data[$row]['datesp'] . '</td>';
-		print '<td>' . $t_data[$row]['dateep'] . '</td>';
-		print '<td>' . ($t_data[$row]['paye'] ? 'Oui' : 'Non') . '</td>';
-		print '<td>' . (substr($t_data[$row]['pdf'], strrpos($t_data[$row]['pdf'], '/') + 1)) . '</td>';
+		print '<td>' . htmlspecialchars($row['userName']) . '</td>';
+		print '<td>' . htmlspecialchars($row['datep']) . '</td>';
+		print '<td>' . htmlspecialchars($row['amount']) . '</td>';
+		print '<td>' . htmlspecialchars($row['typepaymentcode']) . '</td>';
+		print '<td>' . htmlspecialchars($row['label']) . '</td>';
+		print '<td>' . htmlspecialchars($row['datesp']) . '</td>';
+		print '<td>' . htmlspecialchars($row['dateep']) . '</td>';
+		print '<td>' . ($row['paye'] ? 'Oui' : 'Non') . '</td>';
+
+		$pdfDisplay = '';
+		if (!empty($row['pdf'])) {
+			$pdfDisplay = basename($row['pdf']);
+		}
+		print '<td>' . htmlspecialchars($pdfDisplay) . '</td>';
 		print '</tr>';
 	}
 	print '</table>';
 
-	// Get last refs BEFORE the loop to avoid duplicates
-	$lastRefSalaryQuery = $db->query('SELECT ref FROM ' . MAIN_DB_PREFIX . 'salary ORDER BY CAST(ref AS UNSIGNED) DESC LIMIT 1');
-	$lastRefSalary = $lastRefSalaryQuery ? ($db->fetch_object($lastRefSalaryQuery)->ref ?? 0) : 0;
-	$refSalaryCounter = intval($lastRefSalary);
+	// Initialize service and execute import
+	$service = new SalaryImportService($db, $user);
 
-	$lastRefPaymentQuery = $db->query('SELECT ref FROM ' . MAIN_DB_PREFIX . 'payment_salary ORDER BY CAST(ref AS UNSIGNED) DESC LIMIT 1');
-	$lastRefPayment = $lastRefPaymentQuery ? ($db->fetch_object($lastRefPaymentQuery)->ref ?? 0) : 0;
-	$refPaymentCounter = intval($lastRefPayment);
+	$importedCount = $service->executeImport($t_data);
 
-	for ($row = 0; $row < count($t_data); $row++) {
-		$userId = intval($t_data[$row]['userId']);
-		$userName = $t_data[$row]['userName'];
-		$datep = $t_data[$row]['datep'];
-		$amount = floatval($t_data[$row]['amount']);
-		$typepayment = intval($t_data[$row]['typepayment']);
-		$typepaymentcode = $t_data[$row]['typepaymentcode'];
-		$label = $db->escape($t_data[$row]['label']);
-		$datesp = $t_data[$row]['datesp'];
-		$dateep = $t_data[$row]['dateep'];
-		$paye = $t_data[$row]['paye'];
-		$account = intval($t_data[$row]['account']);
-		$pdf = $t_data[$row]['pdf'];
-
-		$refSalaryCounter++;
-		$refSalary = $refSalaryCounter;
-
-		$salaryIdQuery = $db->query('INSERT INTO ' . MAIN_DB_PREFIX . 'salary (ref, datep, amount, fk_typepayment, label, datesp, dateep, paye, fk_user, fk_account, fk_user_author) VALUES ("' . $refSalary . '", "' . $datep . '", "' . $amount . '", "' . $typepayment . '", "' . $label . '", "' . $datesp . '", "' . $dateep . '", "' . $paye . '", "' . $userId . '", "' . $account . '" , "' . $user->id . '")');
-		if (!$salaryIdQuery) {
-			$errors[] = 'Error inserting salary row '.$row.': '.$db->lasterror();
-			continue;
-		}
-		$salaryId = $db->last_insert_id(MAIN_DB_PREFIX . 'salary');
-
-		$refPaymentCounter++;
-		$refPayment = $refPaymentCounter;
-
-		$bankInsertQuery = $db->query('INSERT INTO ' . MAIN_DB_PREFIX . 'bank (datec, datev, dateo, amount, label, fk_account, fk_user_author, fk_type) VALUES ("' . $datep . '", "' . $datep . '", "' . $datep . '", "' . (-$amount) . '", "(SalaryPayment)", "' . $account . '", "' . $user->id . '", "' . $typepaymentcode . '")');
-		if (!$bankInsertQuery) {
-			$errors[] = 'Error inserting bank row '.$row.': '.$db->lasterror();
-			continue;
-		}
-		$bank = $db->last_insert_id(MAIN_DB_PREFIX . 'bank');
-
-		$bankUrlInsertQuery = $db->query('INSERT INTO ' . MAIN_DB_PREFIX . 'bank_url (fk_bank, url_id, url, label, type) VALUES ("' . $bank . '", "' . $salaryId . '", "/salaries/payment_salary/card.php?id=", "(paiement)", "payment_salary")');
-		if (!$bankUrlInsertQuery) {
-			$errors[] = 'Error inserting bank_url row '.$row.': '.$db->lasterror();
-			continue;
-		}
-
-		$bankUrlInsertQuery2 = $db->query('INSERT INTO ' . MAIN_DB_PREFIX . 'bank_url (fk_bank, url_id, url, label, type) VALUES ("' . $bank . '", "' . $userId . '", "/user/card.php?id=", "' . $db->escape($userName) . '", "user")');
-		if (!$bankUrlInsertQuery2) {
-			$errors[] = 'Error inserting bank_url row '.$row.': '.$db->lasterror();
-			continue;
-		}
-
-		$entity = $conf->entity;
-		$paymentSalaryQuery = $db->query('INSERT INTO ' . MAIN_DB_PREFIX . 'payment_salary (ref, datep, amount, fk_typepayment, label, datesp, dateep, fk_user, fk_bank, fk_salary, fk_user_author, entity) VALUES ("' . $refPayment . '", "' . $datep . '", "' . $amount . '", "' . $typepayment . '", "' . $label . '", "' . $datesp . '", "' . $dateep . '", "' . $userId . '", "' . $bank . '", "' . $salaryId . '" , "' . $user->id . '" , "' . $entity . '")');
-		if (!$paymentSalaryQuery) {
-			$errors[] = 'Error inserting payment_salary row '.$row.': '.$db->lasterror();
-		}
-
-		$d = DOL_DATA_ROOT . '/salaries/' . $salaryId;
-
-		if (!empty($pdf)) {
-			if (!is_dir($d)) dol_mkdir($d);
-			dol_move($pdf, $d . '/' . basename($pdf));
-
-			addFileIntoDatabaseIndex(
-				$d,
-				basename($pdf),
-				basename($pdf),
-				'uploaded',
-				0,
-				$object
-			);
-		}
+	if ($importedCount < 0) {
+		throw new Exception(implode('<br />', $service->errors));
 	}
+
 	$db->commit();
 
-	if (count($errors) > 0) {
-		throw new Exception(implode('<br />', $errors));
-	}
+	print '<div class="info">';
+	print '<p>Import terminé avec succès: ' . $importedCount . ' salaire(s) importé(s)</p>';
+	print '</div>';
 
-	print '<p>Import terminé</p>';
+	print '<p><a href="'.dol_buildpath('/custom/salaryimport/salaryimportindex.php', 1).'" class="button">Retour</a></p>';
 
 } catch (Exception $e) {
-	if (
-		!empty($filename_salary) and file_exists($dir . '/' . $filename_salary)
-	) unlink($dir . '/' . $filename_salary);
-	if (
-		!empty($filename_zip) and file_exists($dir . '/' . $filename_zip)
-	) unlink($dir . '/' . $filename_zip);
-	if (
-		!empty($foldername_zip) and is_dir($dir . '/' . $foldername_zip)
-	) {
-		$files = scandir($dir . '/' . $foldername_zip);
-		foreach ($files as $file) {
-			if ($file != '.' && $file != '..') {
-				unlink($dir . '/' . $foldername_zip . '/' . $file);
-			}
-		}
-		rmdir($dir . '/' . $foldername_zip);
-	}
+	$db->rollback();
 
-	print "<h1>Erreur lors de l'import du fichier</h1>";
+	print "<h1>Erreur lors de l'import</h1>";
 	print "<p>Erreur : " . $e->getMessage() . "</p>";
+
+	print '<p><a href="'.dol_buildpath('/custom/salaryimport/salaryimportindex.php', 1).'" class="button">Retour</a></p>';
 }
 
 // End of page
