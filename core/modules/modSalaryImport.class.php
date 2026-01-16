@@ -72,7 +72,7 @@ class modSalaryImport extends DolibarrModules
 		$this->editor_url = '';
 
 		// Possible values for version are: 'development', 'experimental', 'dolibarr', 'dolibarr_deprecated', 'experimental_deprecated' or a version string like 'x.y.z'
-		$this->version = '1.9';
+		$this->version = '1.10';
 		// Url to the file with your last numberversion of this module
 		//$this->url_last_version = 'http://www.example.com/versionmodule.txt';
 
@@ -295,38 +295,22 @@ class modSalaryImport extends DolibarrModules
 		$this->menu = array();
 		$r = 0;
 		// Add here entries to declare new menus
-		/* BEGIN MODULEBUILDER TOPMENU */
-		$this->menu[$r++] = array(
-			'fk_menu'=>'', // '' if this is a top menu. For left menu, use 'fk_mainmenu=xxx' or 'fk_mainmenu=xxx,fk_leftmenu=yyy' where xxx is mainmenucode and yyy is a leftmenucode
-			'type'=>'top', // This is a Top menu entry
-			'titre'=>'ModuleSalaryImportName',
-			'prefix' => img_picto('', $this->picto, 'class="paddingright pictofixedwidth valignmiddle"'),
-			'mainmenu'=>'salaryimport',
-			'leftmenu'=>'',
-			'url'=>'/salaryimport/salaryimportindex.php',
-			'langs'=>'salaryimport@salaryimport', // Lang file to use (without .lang) by module. File must be in langs/code_CODE/ directory.
-			'position'=>1000 + $r,
-			'enabled'=>'isModEnabled("salaryimport")', // Define condition to show or hide menu entry. Use 'isModEnabled("salaryimport")' if entry must be visible if module is enabled.
-			'perms'=>'$user->hasRight("salaryimport", "myobject", "read")', // Use 'perms'=>'$user->hasRight("salaryimport", "myobject", "read")' if you want your menu with a permission rules
-			'target'=>'',
-			'user'=>2, // 0=Menu for internal users, 1=external users, 2=both
-		);
-		/* END MODULEBUILDER TOPMENU */
 		/* BEGIN MODULEBUILDER LEFTMENU MYOBJECT */
-		$this->menu[$r++]=array(
-			'fk_menu'=>'fk_mainmenu=salaryimport',      // '' if this is a top menu. For left menu, use 'fk_mainmenu=xxx' or 'fk_mainmenu=xxx,fk_leftmenu=yyy' where xxx is mainmenucode and yyy is a leftmenucode
-			'type'=>'left',                          // This is a Left menu entry
-			'titre'=>'Importer',
+		// Menu sous Comptabilité > Salariés
+		$this->menu[$r++] = array(
+			'fk_menu'=>'fk_mainmenu=billing,fk_leftmenu=tax_salary', // Sous le menu Comptabilité > Salariés
+			'type'=>'left',
+			'titre'=>'Importer des salaires',
 			'prefix' => img_picto('', $this->picto, 'class="paddingright pictofixedwidth valignmiddle"'),
-			'mainmenu'=>'salaryimport',
-			'leftmenu'=>'import',
-			'url'=>'/salaryimport/salaryimportindex.php',
-			'langs'=>'salaryimport@salaryimport',	        // Lang file to use (without .lang) by module. File must be in langs/code_CODE/ directory.
-			'position'=>1000 + $r,
-			'enabled'=>'isModEnabled("salaryimport")', // Define condition to show or hide menu entry. Use 'isModEnabled("salaryimport")' if entry must be visible if module is enabled.
+			'mainmenu'=>'billing',
+			'leftmenu'=>'salaryimport',
+			'url'=>'/custom/salaryimport/salaryimportindex.php',
+			'langs'=>'salaryimport@salaryimport',
+			'position'=>1100 + $r,
+			'enabled'=>'isModEnabled("salaryimport")',
 			'perms'=>'$user->hasRight("salaryimport", "myobject", "read")',
 			'target'=>'',
-			'user'=>2,				                // 0=Menu for internal users, 1=external users, 2=both
+			'user'=>2,
 		);/*
 		$this->menu[$r++]=array(
 			'fk_menu'=>'fk_mainmenu=salaryimport,fk_leftmenu=myobject',	    // '' if this is a top menu. For left menu, use 'fk_mainmenu=xxx' or 'fk_mainmenu=xxx,fk_leftmenu=yyy' where xxx is mainmenucode and yyy is a leftmenucode

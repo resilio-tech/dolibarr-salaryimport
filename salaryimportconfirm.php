@@ -111,7 +111,6 @@ $dir = DOL_DATA_ROOT.'/salaryimport';
 $pdfs = array();
 try {
 	$t_data = GETPOST('t_data', 'array');
-//	$TData = array(); // all data from inputs
 	$errors = array();
 
 	$labels = array(
@@ -146,6 +145,15 @@ try {
 	}
 	print '</table>';
 
+	// Get last refs BEFORE the loop to avoid duplicates
+	$lastRefSalaryQuery = $db->query('SELECT ref FROM ' . MAIN_DB_PREFIX . 'salary ORDER BY CAST(ref AS UNSIGNED) DESC LIMIT 1');
+	$lastRefSalary = $lastRefSalaryQuery ? ($db->fetch_object($lastRefSalaryQuery)->ref ?? 0) : 0;
+	$refSalaryCounter = intval($lastRefSalary);
+
+	$lastRefPaymentQuery = $db->query('SELECT ref FROM ' . MAIN_DB_PREFIX . 'payment_salary ORDER BY CAST(ref AS UNSIGNED) DESC LIMIT 1');
+	$lastRefPayment = $lastRefPaymentQuery ? ($db->fetch_object($lastRefPaymentQuery)->ref ?? 0) : 0;
+	$refPaymentCounter = intval($lastRefPayment);
+
 	for ($row = 0; $row < count($t_data); $row++) {
 		$userId = intval($t_data[$row]['userId']);
 		$userName = $t_data[$row]['userName'];
@@ -153,79 +161,66 @@ try {
 		$amount = floatval($t_data[$row]['amount']);
 		$typepayment = intval($t_data[$row]['typepayment']);
 		$typepaymentcode = $t_data[$row]['typepaymentcode'];
-		$label = $t_data[$row]['label'];
+		$label = $db->escape($t_data[$row]['label']);
 		$datesp = $t_data[$row]['datesp'];
 		$dateep = $t_data[$row]['dateep'];
 		$paye = $t_data[$row]['paye'];
 		$account = intval($t_data[$row]['account']);
 		$pdf = $t_data[$row]['pdf'];
 
-		$lastRefSalaryQuery = $db->query('SELECT ref FROM ' . MAIN_DB_PREFIX . 'salary ORDER BY ref DESC LIMIT 1');
-		if (!$lastRefSalaryQuery) {
-			$errors[] = 'Erreur lors de la récupération du dernier salaire';
-			$errors[] = $db->lasterror();
-			continue;
-		}
-		$lastRefSalary = $db->fetch_object($lastRefSalaryQuery)->ref;
-		$refSalary = $lastRefSalary + 1;
+		$refSalaryCounter++;
+		$refSalary = $refSalaryCounter;
 
 		$salaryIdQuery = $db->query('INSERT INTO ' . MAIN_DB_PREFIX . 'salary (ref, datep, amount, fk_typepayment, label, datesp, dateep, paye, fk_user, fk_account, fk_user_author) VALUES ("' . $refSalary . '", "' . $datep . '", "' . $amount . '", "' . $typepayment . '", "' . $label . '", "' . $datesp . '", "' . $dateep . '", "' . $paye . '", "' . $userId . '", "' . $account . '" , "' . $user->id . '")');
 		if (!$salaryIdQuery) {
-			$errors[] = 'Erreur lors de l\'insertion du salaire';
-			$errors[] = $db->lasterror();
+			$errors[] = 'Error inserting salary row '.$row.': '.$db->lasterror();
 			continue;
 		}
 		$salaryId = $db->last_insert_id(MAIN_DB_PREFIX . 'salary');
 
-		$lastRefPaymentQuery = $db->query('SELECT ref FROM ' . MAIN_DB_PREFIX . 'payment_salary ORDER BY ref DESC LIMIT 1');
-		if (!$lastRefPaymentQuery) {
-			$errors[] = 'Erreur lors de la récupération du dernier paiement';
-			$errors[] = $db->lasterror();
-			continue;
-		}
-		$lastRefPayment = $db->fetch_object($lastRefPaymentQuery)->ref;
-		$refPayment = $lastRefPayment + 1;
+		$refPaymentCounter++;
+		$refPayment = $refPaymentCounter;
 
 		$bankInsertQuery = $db->query('INSERT INTO ' . MAIN_DB_PREFIX . 'bank (datec, datev, dateo, amount, label, fk_account, fk_user_author, fk_type) VALUES ("' . $datep . '", "' . $datep . '", "' . $datep . '", "' . (-$amount) . '", "(SalaryPayment)", "' . $account . '", "' . $user->id . '", "' . $typepaymentcode . '")');
 		if (!$bankInsertQuery) {
-			$errors[] = 'Erreur lors de l\'insertion du paiement en banque';
-			$errors[] = $db->lasterror();
+			$errors[] = 'Error inserting bank row '.$row.': '.$db->lasterror();
 			continue;
 		}
 		$bank = $db->last_insert_id(MAIN_DB_PREFIX . 'bank');
 
 		$bankUrlInsertQuery = $db->query('INSERT INTO ' . MAIN_DB_PREFIX . 'bank_url (fk_bank, url_id, url, label, type) VALUES ("' . $bank . '", "' . $salaryId . '", "/salaries/payment_salary/card.php?id=", "(paiement)", "payment_salary")');
-		if (!$bankInsertQuery) {
-			$errors[] = 'Erreur lors de l\'insertion du paiement en banque';
-			$errors[] = $db->lasterror();
+		if (!$bankUrlInsertQuery) {
+			$errors[] = 'Error inserting bank_url row '.$row.': '.$db->lasterror();
 			continue;
 		}
-		$bankUrlInsertQuery = $db->query('INSERT INTO ' . MAIN_DB_PREFIX . 'bank_url (fk_bank, url_id, url, label, type) VALUES ("' . $bank . '", "' . $userId . '", "/user/card.php?id=", "' . $userName . '", "user")');
-		if (!$bankInsertQuery) {
-			$errors[] = 'Erreur lors de l\'insertion du paiement en banque';
-			$errors[] = $db->lasterror();
+
+		$bankUrlInsertQuery2 = $db->query('INSERT INTO ' . MAIN_DB_PREFIX . 'bank_url (fk_bank, url_id, url, label, type) VALUES ("' . $bank . '", "' . $userId . '", "/user/card.php?id=", "' . $db->escape($userName) . '", "user")');
+		if (!$bankUrlInsertQuery2) {
+			$errors[] = 'Error inserting bank_url row '.$row.': '.$db->lasterror();
 			continue;
 		}
-		$entity = DOLENTITY;
+
+		$entity = $conf->entity;
 		$paymentSalaryQuery = $db->query('INSERT INTO ' . MAIN_DB_PREFIX . 'payment_salary (ref, datep, amount, fk_typepayment, label, datesp, dateep, fk_user, fk_bank, fk_salary, fk_user_author, entity) VALUES ("' . $refPayment . '", "' . $datep . '", "' . $amount . '", "' . $typepayment . '", "' . $label . '", "' . $datesp . '", "' . $dateep . '", "' . $userId . '", "' . $bank . '", "' . $salaryId . '" , "' . $user->id . '" , "' . $entity . '")');
 		if (!$paymentSalaryQuery) {
-			$errors[] = 'Erreur lors de l\'insertion du paiement';
-			$errors[] = $db->lasterror();
+			$errors[] = 'Error inserting payment_salary row '.$row.': '.$db->lasterror();
 		}
 
 		$d = DOL_DATA_ROOT . '/salaries/' . $salaryId;
 
-		if (!is_dir($d)) dol_mkdir($d);
-		dol_move($pdf, $d . '/' . basename($pdf));
+		if (!empty($pdf)) {
+			if (!is_dir($d)) dol_mkdir($d);
+			dol_move($pdf, $d . '/' . basename($pdf));
 
-		addFileIntoDatabaseIndex(
-			$d,
-			basename($pdf),
-			basename($pdf),
-			'uploaded',
-			0,
-			$object
-		);
+			addFileIntoDatabaseIndex(
+				$d,
+				basename($pdf),
+				basename($pdf),
+				'uploaded',
+				0,
+				$object
+			);
+		}
 	}
 	$db->commit();
 

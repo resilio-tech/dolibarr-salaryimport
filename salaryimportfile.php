@@ -188,16 +188,31 @@ try {
 	$rowCount = $sheet->getHighestRow();
 	$countColumns = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::columnIndexFromString($sheet->getHighestColumn());
 
+	// Fix double UTF-8 encoding
+	function fixEncoding($value) {
+		if (!is_string($value)) return $value;
+		// Detect double UTF-8 encoding (e.g. "Ã©" instead of "é")
+		$fixed = @iconv('UTF-8', 'ISO-8859-1//IGNORE', $value);
+		if ($fixed !== false && $fixed !== $value) {
+			// Check if reverse conversion gives valid UTF-8
+			$test = @iconv('ISO-8859-1', 'UTF-8', $fixed);
+			if ($test !== false && mb_check_encoding($test, 'UTF-8')) {
+				return $test;
+			}
+		}
+		return $value;
+	}
+
 	$headers = array();
 	for ($col = 1; $col <= $countColumns; $col++) {
-		$headers[$col] = $sheet->getCellByColumnAndRow($col, 1)->getValue();
+		$headers[$col] = fixEncoding($sheet->getCellByColumnAndRow($col, 1)->getValue());
 	}
 
 	$lines = array();
 	for ($row = 2; $row <= $rowCount; $row++) {
 		$line = array();
 		for ($col = 1; $col <= $countColumns; $col++) {
-			$line[$headers[$col]] = $sheet->getCellByColumnAndRow($col, $row)->getValue();
+			$line[$headers[$col]] = fixEncoding($sheet->getCellByColumnAndRow($col, $row)->getValue());
 		}
 		$lines[] = $line;
 	}
@@ -206,6 +221,30 @@ try {
 
 	$TData = array();
 	$errors = array();
+
+	function removeAccents($string) {
+		return strtolower(
+			trim(
+				preg_replace(
+					'~[^0-9a-z]+~i',
+					'-',
+					preg_replace(
+						'~&([a-z]{1,2})(acute|cedil|circ|grave|lig|orn|ring|slash|th|tilde|uml);~i',
+						'$1',
+						htmlentities($string, ENT_QUOTES, 'UTF-8')
+					)
+				),
+				' '
+			)
+		);
+	}
+
+	function findByNameRegex($link, $firstname, $lastname) {
+		$fn = removeAccents($firstname);
+		$ln = removeAccents($lastname);
+		$link = removeAccents($link);
+		return ($link == $fn || $link == $ln);
+	}
 
 	for ($row = 0; $row < count($lines); $row++) {
 		$TData[$row] = array();
@@ -226,32 +265,11 @@ try {
 			}
 		}
 
-		function removeAccents($string) {
-			return strtolower(
-				trim(
-					preg_replace(
-						'~[^0-9a-z]+~i',
-						'-',
-						preg_replace(
-							'~&([a-z]{1,2})(acute|cedil|circ|grave|lig|orn|ring|slash|th|tilde|uml);~i',
-							'$1',
-							htmlentities($string, ENT_QUOTES, 'UTF-8')
-						)
-					),
-					' '
-				)
-			);
-		}
-
 		$TData[$row]['pdf'] = '';
 		foreach ($pdfs as $pdf) {
 			$found = false;
 			if (
-				(
-					in_array(removeAccents($firstname), array_map(function ($s) {return removeAccents($s);}, $pdf['links']))
-					&& in_array(removeAccents($lastname), array_map(function ($s) {return removeAccents($s);}, $pdf['links']))
-				)
-				|| (in_array(strtolower($firstname.' '.$lastname), $pdf['links']))
+				!empty(array_filter(array_map(function ($link) use ($firstname, $lastname) { return findByNameRegex($link, $firstname, $lastname); }, $pdf['links'])))
 			) {
 				$found = true;
 			}
