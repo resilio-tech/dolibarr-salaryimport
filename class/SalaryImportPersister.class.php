@@ -158,8 +158,10 @@ class SalaryImportPersister
 	 */
 	public function insertSalary($ref, $datep, $amount, $typepayment, $label, $datesp, $dateep, $paye, $userId, $accountId)
 	{
+		$entity = $this->conf->entity;
+
 		$sql = "INSERT INTO ".MAIN_DB_PREFIX."salary";
-		$sql .= " (ref, datep, amount, fk_typepayment, label, datesp, dateep, paye, fk_user, fk_account, fk_user_author)";
+		$sql .= " (ref, datep, amount, fk_typepayment, label, datesp, dateep, paye, fk_user, fk_account, fk_user_author, entity)";
 		$sql .= " VALUES (";
 		$sql .= "'".$this->db->escape($ref)."',";
 		$sql .= "'".$this->db->escape($datep)."',";
@@ -171,7 +173,8 @@ class SalaryImportPersister
 		$sql .= intval($paye).",";
 		$sql .= intval($userId).",";
 		$sql .= intval($accountId).",";
-		$sql .= intval($this->user->id);
+		$sql .= intval($this->user->id).",";
+		$sql .= intval($entity);
 		$sql .= ")";
 
 		$result = $this->db->query($sql);
@@ -395,10 +398,28 @@ class SalaryImportPersister
 			return $result;
 		}
 
-		// Insert bank URLs
+		// Insert payment salary BEFORE bank_url (we need paymentId for the link)
+		$paymentId = $this->insertPaymentSalary(
+			$paymentRef,
+			$data['datep'],
+			$data['amount'],
+			$data['typepayment'],
+			$data['label'],
+			$data['datesp'],
+			$data['dateep'],
+			$data['userId'],
+			$bankId,
+			$salaryId
+		);
+
+		if ($paymentId < 0) {
+			return $result;
+		}
+
+		// Insert bank URLs - link to payment_salary (not salary)
 		$urlResult = $this->insertBankUrl(
 			$bankId,
-			$salaryId,
+			$paymentId,
 			'/salaries/payment_salary/card.php?id=',
 			'(paiement)',
 			'payment_salary'
@@ -417,24 +438,6 @@ class SalaryImportPersister
 		);
 
 		if ($urlResult < 0) {
-			return $result;
-		}
-
-		// Insert payment salary
-		$paymentId = $this->insertPaymentSalary(
-			$paymentRef,
-			$data['datep'],
-			$data['amount'],
-			$data['typepayment'],
-			$data['label'],
-			$data['datesp'],
-			$data['dateep'],
-			$data['userId'],
-			$bankId,
-			$salaryId
-		);
-
-		if ($paymentId < 0) {
 			return $result;
 		}
 

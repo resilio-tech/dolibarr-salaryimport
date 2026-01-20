@@ -97,6 +97,30 @@ class SalaryImportPdfMatcher
 	}
 
 	/**
+	 * Check if a link segment matches a user's firstname
+	 *
+	 * @param string $link      Link segment from PDF filename
+	 * @param string $firstname User's firstname
+	 * @return bool True if link matches firstname
+	 */
+	public function matchesFirstname($link, $firstname)
+	{
+		return $this->normalizeString($link) === $this->normalizeString($firstname);
+	}
+
+	/**
+	 * Check if a link segment matches a user's lastname
+	 *
+	 * @param string $link     Link segment from PDF filename
+	 * @param string $lastname User's lastname
+	 * @return bool True if link matches lastname
+	 */
+	public function matchesLastname($link, $lastname)
+	{
+		return $this->normalizeString($link) === $this->normalizeString($lastname);
+	}
+
+	/**
 	 * Extract PDF files from a ZIP archive
 	 *
 	 * @param string $zipPath       Path to the ZIP file
@@ -176,6 +200,9 @@ class SalaryImportPdfMatcher
 	/**
 	 * Find a matching PDF for a given user from a list of PDFs
 	 *
+	 * The PDF filename must contain both the firstname AND lastname to match.
+	 * For example, "jean_dupont.pdf" will match user "Jean Dupont" but not "Jean Martin".
+	 *
 	 * @param string $firstname User's firstname
 	 * @param string $lastname  User's lastname
 	 * @param array  $pdfs      Array of PDF info from extractFromZip() or scanDirectoryForPdfs()
@@ -184,14 +211,20 @@ class SalaryImportPdfMatcher
 	public function findPdfForUser($firstname, $lastname, $pdfs)
 	{
 		foreach ($pdfs as $pdf) {
-			$hasMatch = false;
+			$hasFirstname = false;
+			$hasLastname = false;
+
 			foreach ($pdf['links'] as $link) {
-				if ($this->matchesUserName($link, $firstname, $lastname)) {
-					$hasMatch = true;
-					break;
+				if ($this->matchesFirstname($link, $firstname)) {
+					$hasFirstname = true;
+				}
+				if ($this->matchesLastname($link, $lastname)) {
+					$hasLastname = true;
 				}
 			}
-			if ($hasMatch) {
+
+			// Both firstname AND lastname must be present in the filename
+			if ($hasFirstname && $hasLastname) {
 				return $pdf['path'];
 			}
 		}

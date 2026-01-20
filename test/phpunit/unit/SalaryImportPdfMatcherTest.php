@@ -115,6 +115,30 @@ class SalaryImportPdfMatcherTest extends TestCase
 	}
 
 	// ========================================
+	// Tests for matchesFirstname()
+	// ========================================
+
+	public function testMatchesFirstname()
+	{
+		$this->assertTrue($this->matcher->matchesFirstname('jean', 'Jean'));
+		$this->assertTrue($this->matcher->matchesFirstname('JEAN', 'Jean'));
+		$this->assertTrue($this->matcher->matchesFirstname('francois', 'François'));
+		$this->assertFalse($this->matcher->matchesFirstname('marie', 'Jean'));
+	}
+
+	// ========================================
+	// Tests for matchesLastname()
+	// ========================================
+
+	public function testMatchesLastname()
+	{
+		$this->assertTrue($this->matcher->matchesLastname('dupont', 'Dupont'));
+		$this->assertTrue($this->matcher->matchesLastname('DUPONT', 'Dupont'));
+		$this->assertTrue($this->matcher->matchesLastname('noel', 'Noël'));
+		$this->assertFalse($this->matcher->matchesLastname('martin', 'Dupont'));
+	}
+
+	// ========================================
 	// Tests for scanDirectoryForPdfs()
 	// ========================================
 
@@ -195,6 +219,29 @@ class SalaryImportPdfMatcherTest extends TestCase
 
 		$result = $this->matcher->findPdfForUser('Pierre', 'Durand', $pdfs);
 		$this->assertNull($result);
+	}
+
+	public function testFindPdfForUserRequiresBothFirstnameAndLastname()
+	{
+		$pdfs = array(
+			array(
+				'filename' => 'jean_martin.pdf',
+				'path' => '/path/to/jean_martin.pdf',
+				'links' => array('jean', 'martin')
+			)
+		);
+
+		// Should NOT match - firstname matches but lastname doesn't
+		$result = $this->matcher->findPdfForUser('Jean', 'Dupont', $pdfs);
+		$this->assertNull($result);
+
+		// Should NOT match - lastname matches but firstname doesn't
+		$result = $this->matcher->findPdfForUser('Marie', 'Martin', $pdfs);
+		$this->assertNull($result);
+
+		// Should match - both firstname and lastname match
+		$result = $this->matcher->findPdfForUser('Jean', 'Martin', $pdfs);
+		$this->assertEquals('/path/to/jean_martin.pdf', $result);
 	}
 
 	public function testFindPdfForUserWithAccents()
