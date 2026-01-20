@@ -266,6 +266,172 @@ class SalaryImportPdfMatcherTest extends TestCase
 	}
 
 	// ========================================
+	// Tests for compound names (Jean-Pierre)
+	// ========================================
+
+	public function testFindPdfForUserCompoundFirstname()
+	{
+		$pdfs = array(
+			array(
+				'filename' => 'jean_pierre_dupont.pdf',
+				'path' => '/path/to/jean_pierre_dupont.pdf',
+				'links' => array('jean', 'pierre', 'dupont')
+			)
+		);
+
+		// "Jean-Pierre" should match segments "jean" + "pierre" joined
+		$result = $this->matcher->findPdfForUser('Jean-Pierre', 'Dupont', $pdfs);
+		$this->assertEquals('/path/to/jean_pierre_dupont.pdf', $result);
+
+		// "Jean Pierre" (with space) should also work
+		$result = $this->matcher->findPdfForUser('Jean Pierre', 'Dupont', $pdfs);
+		$this->assertEquals('/path/to/jean_pierre_dupont.pdf', $result);
+	}
+
+	public function testFindPdfForUserCompoundLastname()
+	{
+		$pdfs = array(
+			array(
+				'filename' => 'jean_de_la_fontaine.pdf',
+				'path' => '/path/to/jean_de_la_fontaine.pdf',
+				'links' => array('jean', 'de', 'la', 'fontaine')
+			)
+		);
+
+		// "De La Fontaine" should match segments joined
+		$result = $this->matcher->findPdfForUser('Jean', 'De La Fontaine', $pdfs);
+		$this->assertEquals('/path/to/jean_de_la_fontaine.pdf', $result);
+	}
+
+	public function testFindPdfForUserCompoundBoth()
+	{
+		$pdfs = array(
+			array(
+				'filename' => 'jean_pierre_de_villiers.pdf',
+				'path' => '/path/to/jean_pierre_de_villiers.pdf',
+				'links' => array('jean', 'pierre', 'de', 'villiers')
+			)
+		);
+
+		$result = $this->matcher->findPdfForUser('Jean-Pierre', 'De Villiers', $pdfs);
+		$this->assertEquals('/path/to/jean_pierre_de_villiers.pdf', $result);
+	}
+
+	// ========================================
+	// Tests for same firstname/lastname (Martin Martin)
+	// ========================================
+
+	public function testFindPdfForUserSameFirstnameLastnameSingleSegment()
+	{
+		$pdfs = array(
+			array(
+				'filename' => 'martin.pdf',
+				'path' => '/path/to/martin.pdf',
+				'links' => array('martin')
+			)
+		);
+
+		// Should NOT match - only one segment cannot match both firstname AND lastname
+		$result = $this->matcher->findPdfForUser('Martin', 'Martin', $pdfs);
+		$this->assertNull($result);
+	}
+
+	public function testFindPdfForUserSameFirstnameLastnameTwoSegments()
+	{
+		$pdfs = array(
+			array(
+				'filename' => 'martin_martin.pdf',
+				'path' => '/path/to/martin_martin.pdf',
+				'links' => array('martin', 'martin')
+			)
+		);
+
+		// Should match - two distinct segments for firstname and lastname
+		$result = $this->matcher->findPdfForUser('Martin', 'Martin', $pdfs);
+		$this->assertEquals('/path/to/martin_martin.pdf', $result);
+	}
+
+	public function testFindPdfForUserSingleSegmentDoesNotMatchDifferentNames()
+	{
+		$pdfs = array(
+			array(
+				'filename' => 'martin.pdf',
+				'path' => '/path/to/martin.pdf',
+				'links' => array('martin')
+			)
+		);
+
+		// Should NOT match - "Jean Martin" needs both Jean AND Martin in filename
+		$result = $this->matcher->findPdfForUser('Jean', 'Martin', $pdfs);
+		$this->assertNull($result);
+	}
+
+	// ========================================
+	// Tests for generateConsecutiveCombinations()
+	// ========================================
+
+	public function testGenerateConsecutiveCombinationsSingleElement()
+	{
+		$combos = $this->matcher->generateConsecutiveCombinations(array('jean'));
+
+		$this->assertCount(1, $combos);
+		$this->assertEquals('jean', $combos[0]['value']);
+		$this->assertEquals(array(0), $combos[0]['indices']);
+	}
+
+	public function testGenerateConsecutiveCombinationsTwoElements()
+	{
+		$combos = $this->matcher->generateConsecutiveCombinations(array('jean', 'dupont'));
+
+		$this->assertCount(3, $combos);
+
+		// Single elements
+		$this->assertEquals('jean', $combos[0]['value']);
+		$this->assertEquals(array(0), $combos[0]['indices']);
+
+		$this->assertEquals('jean-dupont', $combos[1]['value']);
+		$this->assertEquals(array(0, 1), $combos[1]['indices']);
+
+		$this->assertEquals('dupont', $combos[2]['value']);
+		$this->assertEquals(array(1), $combos[2]['indices']);
+	}
+
+	public function testGenerateConsecutiveCombinationsThreeElements()
+	{
+		$combos = $this->matcher->generateConsecutiveCombinations(array('jean', 'pierre', 'dupont'));
+
+		$this->assertCount(6, $combos);
+
+		// Check that 'jean-pierre' combination exists
+		$found = false;
+		foreach ($combos as $combo) {
+			if ($combo['value'] === 'jean-pierre' && $combo['indices'] === array(0, 1)) {
+				$found = true;
+				break;
+			}
+		}
+		$this->assertTrue($found, 'Should have jean-pierre combination');
+	}
+
+	// ========================================
+	// Tests for indicesOverlap()
+	// ========================================
+
+	public function testIndicesOverlapTrue()
+	{
+		$this->assertTrue($this->matcher->indicesOverlap(array(0, 1), array(1, 2)));
+		$this->assertTrue($this->matcher->indicesOverlap(array(0), array(0)));
+		$this->assertTrue($this->matcher->indicesOverlap(array(0, 1, 2), array(2, 3, 4)));
+	}
+
+	public function testIndicesOverlapFalse()
+	{
+		$this->assertFalse($this->matcher->indicesOverlap(array(0), array(1)));
+		$this->assertFalse($this->matcher->indicesOverlap(array(0, 1), array(2, 3)));
+		$this->assertFalse($this->matcher->indicesOverlap(array(), array(0)));
+	}
+
+	// ========================================
 	// Tests for extractFromZip()
 	// ========================================
 

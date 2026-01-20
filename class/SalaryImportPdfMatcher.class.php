@@ -198,10 +198,62 @@ class SalaryImportPdfMatcher
 	}
 
 	/**
+	 * Generate all possible combinations of consecutive segments
+	 *
+	 * For ['jean', 'pierre', 'dupont'], generates:
+	 * - ['jean'] (indices 0)
+	 * - ['pierre'] (indices 1)
+	 * - ['dupont'] (indices 2)
+	 * - ['jean', 'pierre'] (indices 0,1)
+	 * - ['pierre', 'dupont'] (indices 1,2)
+	 * - ['jean', 'pierre', 'dupont'] (indices 0,1,2)
+	 *
+	 * @param array $links Array of filename segments
+	 * @return array Array of combinations with 'value' (joined string) and 'indices'
+	 */
+	public function generateConsecutiveCombinations($links)
+	{
+		$combinations = array();
+		$count = count($links);
+
+		for ($start = 0; $start < $count; $start++) {
+			for ($len = 1; $len <= $count - $start; $len++) {
+				$segments = array_slice($links, $start, $len);
+				$indices = range($start, $start + $len - 1);
+				$combinations[] = array(
+					'value' => implode('-', $segments),
+					'indices' => $indices
+				);
+			}
+		}
+
+		return $combinations;
+	}
+
+	/**
+	 * Check if two arrays of indices overlap
+	 *
+	 * @param array $indices1 First array of indices
+	 * @param array $indices2 Second array of indices
+	 * @return bool True if indices overlap
+	 */
+	public function indicesOverlap($indices1, $indices2)
+	{
+		return count(array_intersect($indices1, $indices2)) > 0;
+	}
+
+	/**
 	 * Find a matching PDF for a given user from a list of PDFs
 	 *
 	 * The PDF filename must contain both the firstname AND lastname to match.
-	 * For example, "jean_dupont.pdf" will match user "Jean Dupont" but not "Jean Martin".
+	 * Supports compound names (Jean-Pierre) by joining consecutive segments.
+	 * Ensures firstname and lastname match different segments (handles "Martin Martin" case).
+	 *
+	 * Examples:
+	 * - "jean_dupont.pdf" matches "Jean Dupont"
+	 * - "jean_pierre_dupont.pdf" matches "Jean-Pierre Dupont"
+	 * - "martin.pdf" does NOT match "Martin Martin" (needs 2 distinct segments)
+	 * - "martin_martin.pdf" matches "Martin Martin"
 	 *
 	 * @param string $firstname User's firstname
 	 * @param string $lastname  User's lastname
@@ -210,24 +262,38 @@ class SalaryImportPdfMatcher
 	 */
 	public function findPdfForUser($firstname, $lastname, $pdfs)
 	{
-		foreach ($pdfs as $pdf) {
-			$hasFirstname = false;
-			$hasLastname = false;
+		$normalizedFirstname = $this->normalizeString($firstname);
+		$normalizedLastname = $this->normalizeString($lastname);
 
-			foreach ($pdf['links'] as $link) {
-				if ($this->matchesFirstname($link, $firstname)) {
-					$hasFirstname = true;
+		foreach ($pdfs as $pdf) {
+			// Generate all consecutive segment combinations
+			$combinations = $this->generateConsecutiveCombinations($pdf['links']);
+
+			// Find all combinations that match firstname or lastname
+			$firstnameMatches = array();
+			$lastnameMatches = array();
+
+			foreach ($combinations as $combo) {
+				$normalizedCombo = $this->normalizeString($combo['value']);
+
+				if ($normalizedCombo === $normalizedFirstname) {
+					$firstnameMatches[] = $combo['indices'];
 				}
-				if ($this->matchesLastname($link, $lastname)) {
-					$hasLastname = true;
+				if ($normalizedCombo === $normalizedLastname) {
+					$lastnameMatches[] = $combo['indices'];
 				}
 			}
 
-			// Both firstname AND lastname must be present in the filename
-			if ($hasFirstname && $hasLastname) {
-				return $pdf['path'];
+			// Check if we can find non-overlapping matches for both firstname and lastname
+			foreach ($firstnameMatches as $fnIndices) {
+				foreach ($lastnameMatches as $lnIndices) {
+					if (!$this->indicesOverlap($fnIndices, $lnIndices)) {
+						return $pdf['path'];
+					}
+				}
 			}
 		}
+
 		return null;
 	}
 
