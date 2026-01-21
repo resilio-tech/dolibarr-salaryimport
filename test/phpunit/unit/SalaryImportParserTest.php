@@ -188,4 +188,111 @@ class SalaryImportParserTest extends TestCase
 	{
 		$this->assertNull($this->parser->getFilePath());
 	}
+
+	// ========================================
+	// Tests for parseFile() - with empty headers
+	// ========================================
+
+	/**
+	 * Test that columns with empty/null headers are skipped
+	 * This prevents "Illegal offset type" errors in PHP 8+
+	 */
+	public function testParseFileWithEmptyHeaders()
+	{
+		// Create a temp XLSX file with some empty headers
+		$tempFile = sys_get_temp_dir().'/test_empty_headers_'.uniqid().'.xlsx';
+
+		try {
+			$spreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
+			$sheet = $spreadsheet->getActiveSheet();
+
+			// Headers: "Name", empty, "Amount", null, "Date"
+			$sheet->setCellValue('A1', 'Name');
+			$sheet->setCellValue('B1', '');      // Empty string header
+			$sheet->setCellValue('C1', 'Amount');
+			$sheet->setCellValue('D1', null);    // Null header
+			$sheet->setCellValue('E1', 'Date');
+
+			// Data row 1
+			$sheet->setCellValue('A2', 'John');
+			$sheet->setCellValue('B2', 'skip_this');
+			$sheet->setCellValue('C2', 100);
+			$sheet->setCellValue('D2', 'skip_this_too');
+			$sheet->setCellValue('E2', '2024-01-15');
+
+			// Data row 2
+			$sheet->setCellValue('A3', 'Jane');
+			$sheet->setCellValue('B3', 'ignored');
+			$sheet->setCellValue('C3', 200);
+			$sheet->setCellValue('D3', 'also_ignored');
+			$sheet->setCellValue('E3', '2024-01-16');
+
+			$writer = new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($spreadsheet);
+			$writer->save($tempFile);
+
+			// Parse the file - should NOT throw "Illegal offset type" error
+			$result = $this->parser->parseFile($tempFile);
+
+			$this->assertEquals(1, $result, 'parseFile should return 1 on success');
+			$this->assertEmpty($this->parser->errors, 'No errors should be reported');
+
+			// Check headers - should only have non-empty headers
+			$headers = $this->parser->getHeaders();
+			$this->assertContains('Name', $headers);
+			$this->assertContains('Amount', $headers);
+			$this->assertContains('Date', $headers);
+			$this->assertNotContains('', $headers, 'Empty headers should be skipped');
+			$this->assertNotContains(null, $headers, 'Null headers should be skipped');
+
+			// Check data rows
+			$this->assertEquals(2, $this->parser->getRowCount());
+
+			$line1 = $this->parser->getLine(0);
+			$this->assertEquals('John', $line1['Name']);
+			$this->assertEquals(100, $line1['Amount']);
+			$this->assertEquals('2024-01-15', $line1['Date']);
+			$this->assertArrayNotHasKey('', $line1, 'Data should not have empty key');
+
+			$line2 = $this->parser->getLine(1);
+			$this->assertEquals('Jane', $line2['Name']);
+			$this->assertEquals(200, $line2['Amount']);
+			$this->assertEquals('2024-01-16', $line2['Date']);
+		} finally {
+			@unlink($tempFile);
+		}
+	}
+
+	/**
+	 * Test parsing file where ALL headers are empty - should return error
+	 */
+	public function testParseFileWithAllEmptyHeaders()
+	{
+		$tempFile = sys_get_temp_dir().'/test_all_empty_headers_'.uniqid().'.xlsx';
+
+		try {
+			$spreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
+			$sheet = $spreadsheet->getActiveSheet();
+
+			// All empty headers
+			$sheet->setCellValue('A1', '');
+			$sheet->setCellValue('B1', null);
+			$sheet->setCellValue('C1', '');
+
+			// Data row
+			$sheet->setCellValue('A2', 'data1');
+			$sheet->setCellValue('B2', 'data2');
+			$sheet->setCellValue('C2', 'data3');
+
+			$writer = new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($spreadsheet);
+			$writer->save($tempFile);
+
+			// Parse should fail because no valid headers means no data can be extracted
+			$result = $this->parser->parseFile($tempFile);
+
+			// With no valid headers, no lines will be parsed
+			$this->assertEquals(-5, $result, 'Should return -5 (no data rows) when all headers are empty');
+		} finally {
+			@unlink($tempFile);
+		}
+	}
 }

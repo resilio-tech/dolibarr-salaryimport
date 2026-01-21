@@ -130,19 +130,22 @@ class SalaryImportParser
 			$highestColumn = $sheet->getHighestColumn();
 			$countColumns = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::columnIndexFromString($highestColumn);
 
-			// Extract headers from first row
+			// Extract headers from first row (skip columns with empty headers)
 			for ($col = 1; $col <= $countColumns; $col++) {
-				$this->headers[$col] = $this->fixEncoding($sheet->getCellByColumnAndRow($col, 1)->getValue());
+				$header = $this->fixEncoding($sheet->getCellByColumnAndRow($col, 1)->getValue());
+				if ($header !== null && $header !== '') {
+					$this->headers[$col] = $header;
+				}
 			}
 
-			// Extract data rows
+			// Extract data rows (only for columns with valid headers)
 			for ($row = 2; $row <= $rowCount; $row++) {
 				$line = array();
 				$hasData = false;
 
-				for ($col = 1; $col <= $countColumns; $col++) {
+				foreach ($this->headers as $col => $header) {
 					$value = $this->fixEncoding($sheet->getCellByColumnAndRow($col, $row)->getValue());
-					$line[$this->headers[$col]] = $value;
+					$line[$header] = $value;
 					if ($value !== null && $value !== '') {
 						$hasData = true;
 					}
