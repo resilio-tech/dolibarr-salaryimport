@@ -22,6 +22,7 @@
  */
 
 use PhpOffice\PhpSpreadsheet\Reader\Xlsx;
+use PhpOffice\PhpSpreadsheet\Shared\File;
 
 /**
  * Class SalaryImportParser
@@ -116,6 +117,8 @@ class SalaryImportParser
 		}
 
 		try {
+			File::setUseUploadTempDirectory(true);
+
 			$reader = new Xlsx();
 
 			if (!$reader->canRead($filePath)) {
