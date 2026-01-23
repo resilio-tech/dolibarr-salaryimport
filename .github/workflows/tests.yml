@@ -1,0 +1,91 @@
+name: Tests
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  unit-tests:
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        php-version: ['7.4', '8.0', '8.1', '8.2']
+
+    name: PHP ${{ matrix.php-version }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php-version }}
+          extensions: mbstring, xml, zip, gd
+          tools: phpunit:9.6
+          coverage: none
+
+      - name: Create includes directory structure
+        run: |
+          mkdir -p includes/phpoffice/phpspreadsheet/src
+          mkdir -p includes/Psr
+
+      - name: Download PhpSpreadsheet
+        run: |
+          # Download PhpSpreadsheet 1.12.0 (same version as Dolibarr)
+          curl -sL https://github.com/PHPOffice/PhpSpreadsheet/archive/refs/tags/1.12.0.tar.gz | tar xz
+          cp -r PhpSpreadsheet-1.12.0/src/* includes/phpoffice/phpspreadsheet/src/
+          rm -rf PhpSpreadsheet-1.12.0
+
+      - name: Download PSR dependencies
+        run: |
+          # SimpleCache (PSR-16)
+          curl -sL https://github.com/php-fig/simple-cache/archive/refs/tags/1.0.1.tar.gz | tar xz
+          mkdir -p includes/Psr/SimpleCache
+          cp -r simple-cache-1.0.1/src/* includes/Psr/SimpleCache/
+          rm -rf simple-cache-1.0.1
+
+          # Create PSR autoloader
+          cat > includes/Psr/autoloader.php << 'EOF'
+          <?php
+          spl_autoload_register(function ($class) {
+              $prefix = 'Psr\\';
+              $base_dir = __DIR__ . '/';
+              $len = strlen($prefix);
+              if (strncmp($prefix, $class, $len) !== 0) {
+                  return;
+              }
+              $relative_class = substr($class, $len);
+              $file = $base_dir . str_replace('\\', '/', $relative_class) . '.php';
+              if (file_exists($file)) {
+                  require $file;
+              }
+          });
+          EOF
+
+      - name: Run unit tests
+        run: phpunit test/phpunit/unit/
+
+      - name: Run open_basedir test
+        run: |
+          php -d "open_basedir=$(pwd):/tmp" test/phpunit/unit/OpenBasedirTest.php
+
+  syntax-check:
+    runs-on: ubuntu-latest
+    name: PHP Syntax Check
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.1'
+
+      - name: Check PHP syntax
+        run: |
+          find . -name "*.php" -not -path "./test/*" -not -path "./includes/*" | xargs -n1 php -l
