@@ -57,6 +57,12 @@ if (!$res) {
 
 require_once DOL_DOCUMENT_ROOT.'/core/class/html.formfile.class.php';
 require_once DOL_DOCUMENT_ROOT.'/core/lib/files.lib.php';
+
+// IMPORTANT: Load our patched File class BEFORE PhpSpreadsheet autoloader
+// This fixes open_basedir issues with PhpSpreadsheet 1.12.0
+// The patch prevents file_exists() calls on internal ZIP paths like "/xl/worksheets/sheet1.xml"
+require_once __DIR__.'/lib/PhpSpreadsheetFileFix.php';
+
 require_once DOL_DOCUMENT_ROOT.'/includes/phpoffice/phpspreadsheet/src/autoloader.php';
 require_once DOL_DOCUMENT_ROOT.'/includes/Psr/autoloader.php';
 require_once PHPEXCELNEW_PATH.'Spreadsheet.php';

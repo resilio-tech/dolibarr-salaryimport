@@ -24,6 +24,8 @@
 global $conf, $user, $langs, $db;
 
 require_once dirname(__FILE__).'/../../../../master.inc.php';
+// IMPORTANT: Load our patched File class BEFORE PhpSpreadsheet
+require_once dirname(__FILE__).'/../../lib/PhpSpreadsheetFileFix.php';
 require_once DOL_DOCUMENT_ROOT.'/includes/phpoffice/phpspreadsheet/src/autoloader.php';
 require_once DOL_DOCUMENT_ROOT.'/includes/Psr/autoloader.php';
 require_once dirname(__FILE__).'/../../class/SalaryImportService.class.php';

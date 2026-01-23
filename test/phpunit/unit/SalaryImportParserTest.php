@@ -8,6 +8,10 @@
 
 use PHPUnit\Framework\TestCase;
 
+// IMPORTANT: Load our patched File class FIRST, before PhpSpreadsheet
+// This fixes open_basedir issues with PhpSpreadsheet 1.12.0
+require_once dirname(__FILE__).'/../../../lib/PhpSpreadsheetFileFix.php';
+
 // Try to load PhpSpreadsheet autoloader
 $phpSpreadsheetLoaded = false;
 $autoloaderPaths = array(

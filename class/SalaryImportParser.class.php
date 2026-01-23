@@ -21,6 +21,11 @@
  * \brief      Class for parsing XLSX files for salary import
  */
 
+// IMPORTANT: Load our patched File class BEFORE PhpSpreadsheet autoloader
+// This fixes open_basedir issues with PhpSpreadsheet 1.12.0
+// The patch prevents file_exists() calls on internal ZIP paths like "/xl/worksheets/sheet1.xml"
+require_once __DIR__.'/../lib/PhpSpreadsheetFileFix.php';
+
 use PhpOffice\PhpSpreadsheet\Reader\Xlsx;
 use PhpOffice\PhpSpreadsheet\Shared\File;
 
@@ -117,21 +122,15 @@ class SalaryImportParser
 		}
 
 		try {
-			// Set temp directory to Dolibarr's data folder (must be in open_basedir)
-			// This fixes "open_basedir restriction" errors when PhpSpreadsheet extracts XLSX files
-			if (defined('DOL_DATA_ROOT') && is_dir(DOL_DATA_ROOT)) {
-				$tempDir = DOL_DATA_ROOT.'/salaryimport/temp';
-				if (!is_dir($tempDir)) {
-					@mkdir($tempDir, 0755, true);
-				}
-				if (is_dir($tempDir) && is_writable($tempDir)) {
-					File::setTempDir($tempDir);
-				} else {
-					File::setUseUploadTempDirectory(true);
-				}
-			} else {
-				File::setUseUploadTempDirectory(true);
-			}
+			// PhpSpreadsheet 1.12 uses File::realpath() which calls file_exists() on paths
+			// like "/xl/worksheets/sheet1.xml" (internal ZIP paths). This triggers open_basedir
+			// errors when open_basedir is configured.
+			//
+			// setUseUploadTempDirectory(true) helps with temp file creation but doesn't fix
+			// the realpath issue. The real fix requires the XLSX file path to resolve correctly.
+			//
+			// Ensure we use upload temp directory for any temp files PhpSpreadsheet creates
+			File::setUseUploadTempDirectory(true);
 
 			$reader = new Xlsx();
 
