@@ -117,7 +117,21 @@ class SalaryImportParser
 		}
 
 		try {
-			File::setUseUploadTempDirectory(true);
+			// Set temp directory to Dolibarr's data folder (must be in open_basedir)
+			// This fixes "open_basedir restriction" errors when PhpSpreadsheet extracts XLSX files
+			if (defined('DOL_DATA_ROOT') && is_dir(DOL_DATA_ROOT)) {
+				$tempDir = DOL_DATA_ROOT.'/salaryimport/temp';
+				if (!is_dir($tempDir)) {
+					@mkdir($tempDir, 0755, true);
+				}
+				if (is_dir($tempDir) && is_writable($tempDir)) {
+					File::setTempDir($tempDir);
+				} else {
+					File::setUseUploadTempDirectory(true);
+				}
+			} else {
+				File::setUseUploadTempDirectory(true);
+			}
 
 			$reader = new Xlsx();
 

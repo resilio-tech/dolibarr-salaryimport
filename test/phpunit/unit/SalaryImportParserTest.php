@@ -18,8 +18,8 @@ $autoloaderPaths = array(
 foreach ($autoloaderPaths as $path) {
 	if (file_exists($path)) {
 		require_once $path;
-		// Also need PSR autoloader
-		$psrPath = dirname($path).'/../../Psr/autoloader.php';
+		// Also need PSR autoloader (3 levels up from phpspreadsheet/src/)
+		$psrPath = dirname($path).'/../../../Psr/autoloader.php';
 		if (file_exists($psrPath)) {
 			require_once $psrPath;
 		}
