@@ -18,37 +18,25 @@
 #
 
 # Module label 'ModuleSalaryImportName'
-ModuleSalaryImportName = SalaryImport
+ModuleSalaryImportName = Salary Import
 # Module description 'ModuleSalaryImportDesc'
-ModuleSalaryImportDesc = SalaryImport description
+ModuleSalaryImportDesc = Import salaries from Excel/CSV files
 
 #
 # Admin page
 #
-SalaryImportSetup = SalaryImport setup
+SalaryImportSetup = Salary Import setup
 Settings = Settings
-SalaryImportSetupPage = SalaryImport setup page
-SALARYIMPORT_MYPARAM1 = My param 1
-SALARYIMPORT_MYPARAM1Tooltip = My param 1 tooltip
-SALARYIMPORT_MYPARAM2=My param 2
-SALARYIMPORT_MYPARAM2Tooltip=My param 2 tooltip
-
+SalaryImportSetupPage = Salary Import setup page
 
 #
 # About page
 #
 About = About
-SalaryImportAbout = About SalaryImport
-SalaryImportAboutPage = SalaryImport about page
+SalaryImportAbout = About Salary Import
+SalaryImportAboutPage = Salary Import about page
 
 #
-# Sample page
+# Permissions
 #
-SalaryImportArea = Home SalaryImport
-MyPageName = My page name
-
-#
-# Sample widget
-#
-MyWidget = My widget
-MyWidgetDescription = My widget description
+PermSalaryImportRead = Access salary import

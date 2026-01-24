@@ -72,7 +72,7 @@ class modSalaryImport extends DolibarrModules
 		$this->editor_url = '';
 
 		// Possible values for version are: 'development', 'experimental', 'dolibarr', 'dolibarr_deprecated', 'experimental_deprecated' or a version string like 'x.y.z'
-		$this->version = '1.15';
+		$this->version = '1.16.0';
 		// Url to the file with your last numberversion of this module
 		//$this->url_last_version = 'http://www.example.com/versionmodule.txt';
 
@@ -267,29 +267,12 @@ class modSalaryImport extends DolibarrModules
 		// Permissions provided by this module
 		$this->rights = array();
 		$r = 0;
-		// Add here entries to declare new permissions
-		/* BEGIN MODULEBUILDER PERMISSIONS */
-		$this->rights[$r][0] = $this->numero . sprintf("%02d", $r + 1); // Permission id (must not be already used)
-		$this->rights[$r][1] = 'Accéder à l\'import de salaires'; // Permission label
-		$this->rights[$r][4] = 'myobject';
-		$this->rights[$r][5] = 'read'; // In php code, permission will be checked by test if ($user->hasRight('salaryimport', 'myobject', 'read'))
+		// Permissions
+		$this->rights[$r][0] = $this->numero . sprintf("%02d", $r + 1);
+		$this->rights[$r][1] = 'PermSalaryImportRead';
+		$this->rights[$r][4] = 'import';
+		$this->rights[$r][5] = 'read';
 		$r++;
-		/*$this->rights[$r][0] = $this->numero . sprintf("%02d", $r + 1); // Permission id (must not be already used)
-		$this->rights[$r][1] = 'Create/Update objects of SalaryImport'; // Permission label
-		$this->rights[$r][4] = 'myobject';
-		$this->rights[$r][5] = 'write'; // In php code, permission will be checked by test if ($user->hasRight('salaryimport', 'myobject', 'write'))
-		$r++;
-		$this->rights[$r][0] = $this->numero . sprintf("%02d", $r + 1); // Permission id (must not be already used)
-		$this->rights[$r][1] = 'Delete objects of SalaryImport'; // Permission label
-		$this->rights[$r][4] = 'myobject';
-
-		$this->rights[$r][5] = 'delete'; // In php code, permission will be checked by test if ($user->rights->salaryimport->myobject->delete)
-		$r++;
-		*/
-
-
-
-		/* END MODULEBUILDER PERMISSIONS */
 
 		// Main menu entries to add
 		$this->menu = array();
@@ -308,7 +291,7 @@ class modSalaryImport extends DolibarrModules
 			'langs'=>'salaryimport@salaryimport',
 			'position'=>1100 + $r,
 			'enabled'=>'isModEnabled("salaryimport")',
-			'perms'=>'$user->hasRight("salaryimport", "myobject", "read")',
+			'perms'=>'$user->hasRight("salaryimport", "import", "read")',
 			'target'=>'',
 			'user'=>2,
 		);/*
