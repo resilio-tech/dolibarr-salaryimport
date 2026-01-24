@@ -27,16 +27,20 @@ jobs:
       - name: Get version from release
         id: version
         run: |
+          CURRENT_VERSION=$(grep -oP "\\\$this->version\s*=\s*'\K[^']+" core/modules/modSalaryImport.class.php)
+          echo "current=$CURRENT_VERSION" >> $GITHUB_OUTPUT
+          echo "Current version in file: $CURRENT_VERSION"
+
           if [ -n "${{ github.event.inputs.version }}" ]; then
             VERSION="${{ github.event.inputs.version }}"
           elif [ -n "${{ github.event.release.tag_name }}" ]; then
             VERSION="${{ github.event.release.tag_name }}"
             VERSION="${VERSION#v}"
           else
-            VERSION=$(grep -oP "\\\$this->version\s*=\s*'\K[^']+" core/modules/modSalaryImport.class.php)
+            VERSION="$CURRENT_VERSION"
           fi
           echo "version=$VERSION" >> $GITHUB_OUTPUT
-          echo "Module version: $VERSION"
+          echo "Target version: $VERSION"
 
       - name: Update version in module file
         run: |
@@ -94,6 +98,13 @@ jobs:
         if: github.event_name == 'release'
         run: |
           VERSION="${{ steps.version.outputs.version }}"
+          CURRENT_VERSION="${{ steps.version.outputs.current }}"
+
+          if [ "$VERSION" = "$CURRENT_VERSION" ]; then
+            echo "Version already up to date ($VERSION), skipping PR creation"
+            exit 0
+          fi
+
           BRANCH_NAME="chore/bump-version-${VERSION}"
 
           git config user.name "github-actions[bot]"
