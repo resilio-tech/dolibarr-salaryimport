@@ -1,0 +1,70 @@
+name: Bump Version
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'New version number (e.g., 2.0)'
+        required: true
+        type: string
+
+jobs:
+  bump-version:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Get current version
+        id: current
+        run: |
+          CURRENT=$(grep -oP "\\\$this->version\s*=\s*'\K[^']+" core/modules/modSalaryImport.class.php)
+          echo "version=$CURRENT" >> $GITHUB_OUTPUT
+          echo "Current version: $CURRENT"
+
+      - name: Check if version needs update
+        id: check
+        run: |
+          CURRENT="${{ steps.current.outputs.version }}"
+          NEW="${{ github.event.inputs.version }}"
+          if [ "$CURRENT" = "$NEW" ]; then
+            echo "needs_update=false" >> $GITHUB_OUTPUT
+            echo "Version is already $NEW, no update needed"
+          else
+            echo "needs_update=true" >> $GITHUB_OUTPUT
+            echo "Version will be updated from $CURRENT to $NEW"
+          fi
+
+      - name: Update version in module descriptor
+        if: steps.check.outputs.needs_update == 'true'
+        run: |
+          NEW_VERSION="${{ github.event.inputs.version }}"
+          sed -i "s/\$this->version = '[^']*'/\$this->version = '$NEW_VERSION'/" core/modules/modSalaryImport.class.php
+          echo "Updated version to $NEW_VERSION"
+          grep "version" core/modules/modSalaryImport.class.php | head -1
+
+      - name: Create Pull Request
+        if: steps.check.outputs.needs_update == 'true'
+        uses: peter-evans/create-pull-request@v6
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          commit-message: "chore: bump version to ${{ github.event.inputs.version }}"
+          title: "chore: bump version to ${{ github.event.inputs.version }}"
+          body: |
+            ## Version Bump
+
+            This PR updates the module version from `${{ steps.current.outputs.version }}` to `${{ github.event.inputs.version }}`.
+
+            ### Changes
+            - Updated `$this->version` in `core/modules/modSalaryImport.class.php`
+
+            ---
+            *Automated PR created by bump-version workflow*
+          branch: bump-version-${{ github.event.inputs.version }}
+          delete-branch: true
+
+      - name: Report no update needed
+        if: steps.check.outputs.needs_update == 'false'
+        run: |
+          echo "::notice::Version is already ${{ github.event.inputs.version }}, no PR created"

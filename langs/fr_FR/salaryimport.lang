@@ -1,4 +1,4 @@
-# Copyright (C) ---Put here your own copyright and developer email---
+# Copyright (C) 2023 SuperAdmin
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -17,40 +17,26 @@
 # Generic
 #
 
-# Module label 'ModuleMyModuleName'
-ModuleMyModuleName = MyModule
-# Module description 'ModuleMyModuleDesc'
-ModuleMyModuleDesc = MyModule description
+# Module label 'ModuleSalaryImportName'
+ModuleSalaryImportName = Import de Salaires
+# Module description 'ModuleSalaryImportDesc'
+ModuleSalaryImportDesc = Importer des salaires depuis des fichiers Excel/CSV
 
 #
 # Admin page
 #
-MyModuleSetup = MyModule setup
-Settings = Settings
-MyModuleSetupPage = MyModule setup page
-MYMODULE_MYPARAM1 = My param 1
-MYMODULE_MYPARAM1Tooltip = My param 1 tooltip
-MYMODULE_MYPARAM2=My param 2
-MYMODULE_MYPARAM2Tooltip=My param 2 tooltip
-
+SalaryImportSetup = Configuration Import de Salaires
+Settings = Paramètres
+SalaryImportSetupPage = Page de configuration Import de Salaires
 
 #
 # About page
 #
-About = About
-MyModuleAbout = About MyModule
-MyModuleAboutPage = MyModule about page
+About = À propos
+SalaryImportAbout = À propos d'Import de Salaires
+SalaryImportAboutPage = Page à propos d'Import de Salaires
 
 #
-# Sample page
+# Permissions
 #
-MyModuleArea = Home MyModule
-MyPageName = My page name
-
-#
-# Sample widget
-#
-MyWidget = My widget
-MyWidgetDescription = My widget description
-
-ModuleSalaryImportName = Import de Salaires
+PermSalaryImportRead = Accéder à l'import de salaires

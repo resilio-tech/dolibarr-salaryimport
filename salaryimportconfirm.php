@@ -86,10 +86,9 @@ if ($user->socid > 0) $socid = $user->socid;
 if (!isModEnabled('salaryimport')) {
 	accessforbidden('Module not enabled');
 }
-if (!$user->hasRight('salaryimport', 'myobject', 'read')) {
+if (!$user->hasRight('salaryimport', 'import', 'read')) {
 	accessforbidden();
 }
-restrictedArea($user, 'salaryimport', 0, 'salaryimport_myobject', 'myobject', '', 'rowid');
 if (empty($user->admin)) {
 	accessforbidden('Must be admin');
 }
