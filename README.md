@@ -1,86 +1,45 @@
-# SALARYIMPORT FOR [DOLIBARR ERP CRM](https://www.dolibarr.org)
+# Salary Import for Dolibarr
+
+Module for importing salaries from Excel files with optional PDF payslip matching.
 
 ## Features
 
-Description of the module...
+- Import salaries from XLSX files
+- Optional ZIP file with PDF payslips for automatic matching
+- User matching by firstname/lastname
+- Preview before import
+- Bank account assignment
+- Payment type configuration
 
-<!--
-![Screenshot salaryimport](img/screenshot_salaryimport.png?raw=true "SalaryImport"){imgmd}
--->
+## Requirements
 
-Other external modules are available on [Dolistore.com](https://www.dolistore.com).
-
-## Translations
-
-Translations can be completed manually by editing files into directories *langs*.
-
-<!--
-This module contains also a sample configuration for Transifex, under the hidden directory [.tx](.tx), so it is possible to manage translation using this service.
-
-For more informations, see the [translator's documentation](https://wiki.dolibarr.org/index.php/Translator_documentation).
-
-There is a [Transifex project](https://transifex.com/projects/p/dolibarr-module-template) for this module.
--->
-
-<!--
+- Dolibarr 11.0 or later
+- PHP 7.0 or later
+- PhpSpreadsheet (included in Dolibarr)
 
 ## Installation
 
-### From the ZIP file and GUI interface
+1. Download the module and extract to `htdocs/custom/salaryimport`
+2. Enable the module in Dolibarr: Setup > Modules > Other
+3. Grant permissions to users who need access
 
-If the module is a ready to deploy zip file, so with a name module_xxx-version.zip (like when downloading it from a market place like [Dolistore](https://www.dolistore.com)),
-go into menu ```Home - Setup - Modules - Deploy external module``` and upload the zip file.
+## Usage
 
-Note: If this screen tell you that there is no "custom" directory, check that your setup is correct:
+1. Go to Accounting > Employees > Import Salaries
+2. Upload an XLSX file with salary data
+3. Optionally upload a ZIP file containing PDF payslips
+4. Review the preview and confirm import
 
-- In your Dolibarr installation directory, edit the ```htdocs/conf/conf.php``` file and check that following lines are not commented:
+### Excel File Format
 
-    ```php
-    //$dolibarr_main_url_root_alt ...
-    //$dolibarr_main_document_root_alt ...
-    ```
+The Excel file should contain columns for:
+- Employee name (firstname, lastname)
+- Payment date
+- Amount
+- Payment type
+- Start/end period dates
+- Bank account
 
-- Uncomment them if necessary (delete the leading ```//```) and assign a sensible value according to your Dolibarr installation
-
-    For example :
-
-    - UNIX:
-        ```php
-        $dolibarr_main_url_root_alt = '/custom';
-        $dolibarr_main_document_root_alt = '/var/www/Dolibarr/htdocs/custom';
-        ```
-
-    - Windows:
-        ```php
-        $dolibarr_main_url_root_alt = '/custom';
-        $dolibarr_main_document_root_alt = 'C:/My Web Sites/Dolibarr/htdocs/custom';
-        ```
-
-### From a GIT repository
-
-Clone the repository in ```$dolibarr_main_document_root_alt/salaryimport```
-
-```sh
-cd ....../custom
-git clone git@github.com:gitlogin/salaryimport.git salaryimport
-```
-
-### <a name="final_steps"></a>Final steps
-
-From your browser:
-
-  - Log into Dolibarr as a super-administrator
-  - Go to "Setup" -> "Modules"
-  - You should now be able to find and enable the module
-
--->
-
-## Licenses
-
-### Main code
+## License
 
 GPLv3 or (at your option) any later version. See file COPYING for more information.
-
-### Documentation
-
-All texts and readmes are licensed under GFDL.
