@@ -98,3 +98,66 @@ StartDate = Date de début
 EndDate = Date de fin
 Paid = Payé
 PdfFile = Fichier PDF
+
+#
+# Error messages
+#
+
+# Upload errors
+ErrorNoXlsxFile = Aucun fichier XLSX fourni
+ErrorUploadXlsx = Erreur lors de l'envoi du fichier de salaire
+ErrorXlsxFormat = Le fichier de salaire doit être au format xlsx
+ErrorUploadZip = Erreur lors de l'envoi du fichier zip de PDF
+ErrorZipFormat = Le fichier de PDF doit être au format zip
+
+# File errors
+ErrorFileNotFound = Fichier non trouvé : %s
+ErrorFileNotReadable = Le fichier n'est pas lisible : %s
+ErrorFileMustBeXlsx = Le fichier doit être au format XLSX, reçu : %s
+ErrorCannotReadXlsx = Impossible de lire le fichier XLSX : %s
+ErrorNoDataRows = Aucune ligne de données trouvée dans le fichier
+ErrorParsingXlsx = Erreur lors de l'analyse du fichier XLSX : %s
+
+# Validation errors
+ErrorEmptyFirstnameOrLastname = Prénom ou nom vide à la ligne %s
+ErrorEmptyPaymentDate = Date de paiement vide à la ligne %s
+ErrorInvalidPaymentDate = Date de paiement (%s) invalide à la ligne %s
+ErrorEmptyOrInvalidAmount = Montant vide ou invalide à la ligne %s
+ErrorEmptyLabel = Libellé vide à la ligne %s
+ErrorEmptyStartDate = Date de début vide à la ligne %s
+ErrorInvalidStartDate = Date de début (%s) invalide à la ligne %s
+ErrorEmptyEndDate = Date de fin vide à la ligne %s
+ErrorInvalidEndDate = Date de fin (%s) invalide à la ligne %s
+ErrorEmptyPaymentType = Type de paiement vide à la ligne %s
+ErrorEmptyPaid = Champ Payé vide à la ligne %s
+ErrorInvalidPaid = Champ Payé invalide (doit être oui/non) à la ligne %s
+ErrorEmptyBankAccount = Compte bancaire vide à la ligne %s
+
+# Lookup errors
+ErrorUserNotFound = Utilisateur non trouvé à la ligne %s
+ErrorPaymentTypeNotFound = Type de paiement '%s' non trouvé à la ligne %s
+ErrorBankAccountNotFound = Compte bancaire '%s' non trouvé à la ligne %s
+ErrorDatabaseQuery = Erreur de base de données : %s
+
+# ZIP errors
+ErrorZipNotFound = Fichier ZIP non trouvé : %s
+ErrorZipOpen = Impossible d'ouvrir l'archive ZIP : %s
+ErrorZipExtract = Impossible d'extraire l'archive ZIP vers : %s
+
+# Persist errors
+ErrorGetLastSalaryRef = Erreur lors de la récupération de la dernière référence de salaire : %s
+ErrorGetLastPaymentRef = Erreur lors de la récupération de la dernière référence de paiement : %s
+ErrorInsertSalary = Erreur lors de l'insertion du salaire : %s
+ErrorInsertBankTransaction = Erreur lors de l'insertion de la transaction bancaire : %s
+ErrorInsertBankUrl = Erreur lors de l'insertion du lien bancaire : %s
+ErrorInsertPaymentSalary = Erreur lors de l'insertion du paiement de salaire : %s
+ErrorCreateDirectory = Impossible de créer le répertoire : %s
+ErrorMovePdf = Impossible de déplacer le fichier PDF vers : %s
+ErrorIndexPdf = Impossible d'indexer le fichier PDF dans la base de données
+ErrorPersistRow = Erreur lors de la persistance de la ligne %s : %s
+
+# Cleanup errors
+ErrorDeleteXlsx = Impossible de supprimer le fichier XLSX
+ErrorDeleteZip = Impossible de supprimer le fichier ZIP : %s
+ErrorDeleteFile = Impossible de supprimer le fichier : %s
+ErrorDeleteFolder = Impossible de supprimer le dossier : %s

@@ -186,6 +186,7 @@ class SalaryImportValidator
 	 */
 	public function validateRow($line, $rowNum)
 	{
+		global $langs;
 		$validated = array();
 		$rowErrors = array();
 
@@ -194,7 +195,7 @@ class SalaryImportValidator
 		$lastname = isset($line['Nom']) ? trim($line['Nom']) : '';
 
 		if (empty($firstname) || empty($lastname)) {
-			$rowErrors[] = 'Prénom ou nom vide à la ligne '.$rowNum;
+			$rowErrors[] = $langs->trans('ErrorEmptyFirstnameOrLastname', $rowNum);
 		} else {
 			$validated['firstname'] = $firstname;
 			$validated['lastname'] = $lastname;
@@ -203,11 +204,11 @@ class SalaryImportValidator
 		// Validate payment date
 		$datep = isset($line['Date de paiement']) ? $line['Date de paiement'] : null;
 		if (empty($datep)) {
-			$rowErrors[] = 'Date de paiement vide à la ligne '.$rowNum;
+			$rowErrors[] = $langs->trans('ErrorEmptyPaymentDate', $rowNum);
 		} else {
 			$parsedDate = $this->parseExcelDate($datep);
 			if ($parsedDate === false) {
-				$rowErrors[] = 'Date de paiement ('.$datep.') invalide à la ligne '.$rowNum;
+				$rowErrors[] = $langs->trans('ErrorInvalidPaymentDate', $datep, $rowNum);
 			} else {
 				$validated['datep'] = $parsedDate;
 				$validated['datep_display'] = $this->formatDateForDisplay($datep);
@@ -218,7 +219,7 @@ class SalaryImportValidator
 		$amount = isset($line['Montant']) ? $line['Montant'] : null;
 		$parsedAmount = $this->parseAmount($amount);
 		if ($parsedAmount === false) {
-			$rowErrors[] = 'Montant vide ou invalide à la ligne '.$rowNum;
+			$rowErrors[] = $langs->trans('ErrorEmptyOrInvalidAmount', $rowNum);
 		} else {
 			$validated['amount'] = $parsedAmount;
 		}
@@ -226,7 +227,7 @@ class SalaryImportValidator
 		// Validate label
 		$label = isset($line['Libellé']) ? trim($line['Libellé']) : '';
 		if (empty($label)) {
-			$rowErrors[] = 'Libellé vide à la ligne '.$rowNum;
+			$rowErrors[] = $langs->trans('ErrorEmptyLabel', $rowNum);
 		} else {
 			$validated['label'] = $label;
 		}
@@ -234,11 +235,11 @@ class SalaryImportValidator
 		// Validate start date
 		$datesp = isset($line['Date de début']) ? $line['Date de début'] : null;
 		if (empty($datesp)) {
-			$rowErrors[] = 'Date de début vide à la ligne '.$rowNum;
+			$rowErrors[] = $langs->trans('ErrorEmptyStartDate', $rowNum);
 		} else {
 			$parsedDate = $this->parseExcelDate($datesp);
 			if ($parsedDate === false) {
-				$rowErrors[] = 'Date de début ('.$datesp.') invalide à la ligne '.$rowNum;
+				$rowErrors[] = $langs->trans('ErrorInvalidStartDate', $datesp, $rowNum);
 			} else {
 				$validated['datesp'] = $parsedDate;
 				$validated['datesp_display'] = $this->formatDateForDisplay($datesp);
@@ -248,11 +249,11 @@ class SalaryImportValidator
 		// Validate end date
 		$dateep = isset($line['Date de fin']) ? $line['Date de fin'] : null;
 		if (empty($dateep)) {
-			$rowErrors[] = 'Date de fin vide à la ligne '.$rowNum;
+			$rowErrors[] = $langs->trans('ErrorEmptyEndDate', $rowNum);
 		} else {
 			$parsedDate = $this->parseExcelDate($dateep);
 			if ($parsedDate === false) {
-				$rowErrors[] = 'Date de fin ('.$dateep.') invalide à la ligne '.$rowNum;
+				$rowErrors[] = $langs->trans('ErrorInvalidEndDate', $dateep, $rowNum);
 			} else {
 				$validated['dateep'] = $parsedDate;
 				$validated['dateep_display'] = $this->formatDateForDisplay($dateep);
@@ -262,7 +263,7 @@ class SalaryImportValidator
 		// Store payment type code for lookup (will be validated by UserLookup)
 		$typepayment = isset($line['Type de paiement']) ? trim($line['Type de paiement']) : '';
 		if (empty($typepayment)) {
-			$rowErrors[] = 'Type de paiement vide à la ligne '.$rowNum;
+			$rowErrors[] = $langs->trans('ErrorEmptyPaymentType', $rowNum);
 		} else {
 			$validated['typepayment_code'] = $typepayment;
 		}
@@ -270,11 +271,11 @@ class SalaryImportValidator
 		// Validate Payé field
 		$paye = isset($line['Payé']) ? $line['Payé'] : null;
 		if ($paye === null || $paye === '') {
-			$rowErrors[] = 'Payé vide à la ligne '.$rowNum;
+			$rowErrors[] = $langs->trans('ErrorEmptyPaid', $rowNum);
 		} else {
 			$parsedPaye = $this->parsePaye($paye);
 			if ($parsedPaye === false) {
-				$rowErrors[] = 'Payé invalide (doit être oui/non) à la ligne '.$rowNum;
+				$rowErrors[] = $langs->trans('ErrorInvalidPaid', $rowNum);
 			} else {
 				$validated['paye'] = $parsedPaye;
 			}
@@ -283,7 +284,7 @@ class SalaryImportValidator
 		// Store bank account for lookup (will be validated by UserLookup)
 		$account = isset($line['Compte bancaire']) ? trim($line['Compte bancaire']) : '';
 		if (empty($account)) {
-			$rowErrors[] = 'Compte bancaire vide à la ligne '.$rowNum;
+			$rowErrors[] = $langs->trans('ErrorEmptyBankAccount', $rowNum);
 		} else {
 			$validated['account_ref'] = $account;
 		}

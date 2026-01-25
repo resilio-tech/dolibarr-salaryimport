@@ -129,11 +129,12 @@ class SalaryImportPdfMatcher
 	 */
 	public function extractFromZip($zipPath, $extractFolder = null)
 	{
+		global $langs;
 		$pdfs = array();
 		$this->errors = array();
 
 		if (!file_exists($zipPath)) {
-			$this->errors[] = 'ZIP file not found: '.$zipPath;
+			$this->errors[] = $langs->trans('ErrorZipNotFound', $zipPath);
 			return $pdfs;
 		}
 
@@ -145,12 +146,12 @@ class SalaryImportPdfMatcher
 
 		$zip = new ZipArchive();
 		if ($zip->open($zipPath) !== true) {
-			$this->errors[] = 'Failed to open ZIP archive: '.$zipPath;
+			$this->errors[] = $langs->trans('ErrorZipOpen', $zipPath);
 			return $pdfs;
 		}
 
 		if (!$zip->extractTo($extractPath)) {
-			$this->errors[] = 'Failed to extract ZIP archive to: '.$extractPath;
+			$this->errors[] = $langs->trans('ErrorZipExtract', $extractPath);
 			$zip->close();
 			return $pdfs;
 		}
@@ -306,6 +307,7 @@ class SalaryImportPdfMatcher
 	 */
 	public function cleanup($folderName, $zipName = null)
 	{
+		global $langs;
 		$result = 1;
 
 		// Remove ZIP file if specified
@@ -313,7 +315,7 @@ class SalaryImportPdfMatcher
 			$zipPath = $this->workDir.'/'.$zipName;
 			if (file_exists($zipPath)) {
 				if (!unlink($zipPath)) {
-					$this->errors[] = 'Failed to delete ZIP file: '.$zipPath;
+					$this->errors[] = $langs->trans('ErrorDeleteZip', $zipPath);
 					$result = -1;
 				}
 			}
@@ -328,14 +330,14 @@ class SalaryImportPdfMatcher
 					$filePath = $folderPath.'/'.$file;
 					if (is_file($filePath)) {
 						if (!unlink($filePath)) {
-							$this->errors[] = 'Failed to delete file: '.$filePath;
+							$this->errors[] = $langs->trans('ErrorDeleteFile', $filePath);
 							$result = -1;
 						}
 					}
 				}
 			}
 			if (!rmdir($folderPath)) {
-				$this->errors[] = 'Failed to delete folder: '.$folderPath;
+				$this->errors[] = $langs->trans('ErrorDeleteFolder', $folderPath);
 				$result = -1;
 			}
 		}

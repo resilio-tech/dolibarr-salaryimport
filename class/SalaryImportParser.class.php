@@ -155,6 +155,7 @@ class SalaryImportParser
 	 */
 	public function parseFile($filePath)
 	{
+		global $langs;
 		$this->errors = array();
 		$this->headers = array();
 		$this->lines = array();
@@ -162,19 +163,19 @@ class SalaryImportParser
 
 		// Check file exists and is readable
 		if (!file_exists($filePath)) {
-			$this->errors[] = 'File not found: '.$filePath;
+			$this->errors[] = $langs->trans('ErrorFileNotFound', $filePath);
 			return -1;
 		}
 
 		if (!is_readable($filePath)) {
-			$this->errors[] = 'File is not readable: '.$filePath;
+			$this->errors[] = $langs->trans('ErrorFileNotReadable', $filePath);
 			return -2;
 		}
 
 		// Check file extension
 		$ext = strtolower(pathinfo($filePath, PATHINFO_EXTENSION));
 		if ($ext !== 'xlsx') {
-			$this->errors[] = 'File must be in XLSX format, got: '.$ext;
+			$this->errors[] = $langs->trans('ErrorFileMustBeXlsx', $ext);
 			return -3;
 		}
 
@@ -185,7 +186,7 @@ class SalaryImportParser
 			$reader = new Xlsx();
 
 			if (!$reader->canRead($filePath)) {
-				$this->errors[] = 'Cannot read XLSX file: '.$filePath;
+				$this->errors[] = $langs->trans('ErrorCannotReadXlsx', $filePath);
 				return -4;
 			}
 
@@ -225,13 +226,13 @@ class SalaryImportParser
 			}
 
 			if (count($this->lines) === 0) {
-				$this->errors[] = 'No data rows found in file';
+				$this->errors[] = $langs->trans('ErrorNoDataRows');
 				return -5;
 			}
 
 			return 1;
 		} catch (Exception $e) {
-			$this->errors[] = 'Error parsing XLSX file: '.$e->getMessage();
+			$this->errors[] = $langs->trans('ErrorParsingXlsx', $e->getMessage());
 			return -6;
 		}
 	}
