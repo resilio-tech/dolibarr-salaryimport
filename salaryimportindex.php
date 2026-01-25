@@ -83,23 +83,52 @@ if (empty($user->admin)) {
 
 llxHeader("", $langs->trans("SalaryImportArea"));
 
-print load_fiche_titre($langs->trans("SalaryImportArea"), '', 'salaryimport.png@salaryimport');
+print load_fiche_titre($langs->trans("SalaryImportStep1"), '', 'salaryimport.png@salaryimport');
 
-print '<div class="fichecenter">';
-print '<form method="POST" action="/custom/salaryimport/salaryimportfile.php" enctype="multipart/form-data">';
-print '<div>';
-print '<label for="file">Fichier XLSX de salaires : </label>';
-print '<input type="file" name="file" required>';
-print '</div>';
-print '<div>';
-print '<label for="zipfile">Fichier ZIP avec PDF correspondants : </label>';
-print '<input type="file" name="zip">';
-print '</div>';
-print '<input type="submit" value="Envoyer">';
+// Guide format XLSX
+$infoText = '<b>'.$langs->trans("XlsxFormatGuide").'</b><br><br>';
+$infoText .= $langs->trans("XlsxFormatInfo").'<br>';
+$infoText .= '- <b>'.$langs->trans("XlsxColumnFirstname").'</b><br>';
+$infoText .= '- <b>'.$langs->trans("XlsxColumnLastname").'</b><br>';
+$infoText .= '- <b>'.$langs->trans("XlsxColumnPaymentDate").'</b><br>';
+$infoText .= '- <b>'.$langs->trans("XlsxColumnAmount").'</b><br>';
+$infoText .= '- <b>'.$langs->trans("XlsxColumnLabel").'</b><br>';
+$infoText .= '- <b>'.$langs->trans("XlsxColumnStartDate").'</b><br>';
+$infoText .= '- <b>'.$langs->trans("XlsxColumnEndDate").'</b><br>';
+$infoText .= '- <b>'.$langs->trans("XlsxColumnPaymentType").'</b><br>';
+$infoText .= '- <b>'.$langs->trans("XlsxColumnPaid").'</b><br>';
+$infoText .= '- <b>'.$langs->trans("XlsxColumnBankAccount").'</b>';
+print info_admin($infoText, 0, 0, 0, 'info');
+
+print '<form method="POST" action="'.dol_buildpath('/custom/salaryimport/salaryimportfile.php', 1).'" enctype="multipart/form-data">';
 print '<input type="hidden" name="token" value="'.newToken().'">';
 print '<input type="hidden" name="action" value="add">';
-print '</form>';
+
+print dol_get_fiche_head(array(), '');
+
+print '<table class="border centpercent">';
+
+// XLSX field (required)
+print '<tr>';
+print '<td class="titlefieldcreate fieldrequired">'.$langs->trans("SalaryXlsxFile").'</td>';
+print '<td><input type="file" name="file" accept=".xlsx" required class="minwidth300"></td>';
+print '</tr>';
+
+// ZIP field (optional)
+print '<tr>';
+print '<td class="titlefieldcreate">'.$langs->trans("SalaryPdfZipFile").'</td>';
+print '<td><input type="file" name="zip" accept=".zip" class="minwidth300"></td>';
+print '</tr>';
+
+print '</table>';
+
+print dol_get_fiche_end();
+
+print '<div class="center">';
+print '<input type="submit" class="button" value="'.$langs->trans("SendFiles").'">';
 print '</div>';
+
+print '</form>';
 
 
 // End of page
