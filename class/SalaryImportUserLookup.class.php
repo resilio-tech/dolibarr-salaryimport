@@ -85,7 +85,8 @@ class SalaryImportUserLookup
 
 		$result = $this->db->query($sql);
 		if (!$result) {
-			$this->errors[] = 'Database error: '.$this->db->lasterror();
+			global $langs;
+			$this->errors[] = $langs->trans('ErrorDatabaseQuery', $this->db->lasterror());
 			return false;
 		}
 
@@ -124,7 +125,8 @@ class SalaryImportUserLookup
 
 		$result = $this->db->query($sql);
 		if (!$result) {
-			$this->errors[] = 'Database error: '.$this->db->lasterror();
+			global $langs;
+			$this->errors[] = $langs->trans('ErrorDatabaseQuery', $this->db->lasterror());
 			return false;
 		}
 
@@ -165,7 +167,8 @@ class SalaryImportUserLookup
 
 		$result = $this->db->query($sql);
 		if (!$result) {
-			$this->errors[] = 'Database error: '.$this->db->lasterror();
+			global $langs;
+			$this->errors[] = $langs->trans('ErrorDatabaseQuery', $this->db->lasterror());
 			return false;
 		}
 
@@ -194,6 +197,7 @@ class SalaryImportUserLookup
 	 */
 	public function enrichRowData($validatedRow, $rowNum)
 	{
+		global $langs;
 		$enriched = $validatedRow;
 		$rowErrors = array();
 
@@ -201,7 +205,7 @@ class SalaryImportUserLookup
 		if (isset($validatedRow['firstname']) && isset($validatedRow['lastname'])) {
 			$user = $this->findUserByName($validatedRow['firstname'], $validatedRow['lastname']);
 			if ($user === false) {
-				$rowErrors[] = 'Utilisateur non trouvé à la ligne '.$rowNum;
+				$rowErrors[] = $langs->trans('ErrorUserNotFound', $rowNum);
 			} else {
 				$enriched['userId'] = $user['rowid'];
 				$enriched['userName'] = $user['name'];
@@ -212,7 +216,7 @@ class SalaryImportUserLookup
 		if (isset($validatedRow['typepayment_code'])) {
 			$paymentType = $this->findPaymentType($validatedRow['typepayment_code']);
 			if ($paymentType === false) {
-				$rowErrors[] = 'Type de paiement non trouvé à la ligne '.$rowNum;
+				$rowErrors[] = $langs->trans('ErrorPaymentTypeNotFound', $validatedRow['typepayment_code'], $rowNum);
 			} else {
 				$enriched['typepayment'] = $paymentType['id'];
 				$enriched['typepaymentcode'] = $paymentType['code'];
@@ -224,7 +228,7 @@ class SalaryImportUserLookup
 		if (isset($validatedRow['account_ref'])) {
 			$account = $this->findBankAccount($validatedRow['account_ref']);
 			if ($account === false) {
-				$rowErrors[] = 'Compte bancaire non trouvé à la ligne '.$rowNum;
+				$rowErrors[] = $langs->trans('ErrorBankAccountNotFound', $validatedRow['account_ref'], $rowNum);
 			} else {
 				$enriched['account'] = $account['rowid'];
 				$enriched['account_label'] = $account['label'];

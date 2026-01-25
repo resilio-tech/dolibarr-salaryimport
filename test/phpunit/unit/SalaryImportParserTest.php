@@ -36,6 +36,9 @@ if ($phpSpreadsheetLoaded) {
 	require_once dirname(__FILE__).'/../../../class/SalaryImportParser.class.php';
 }
 
+// Load mock for $langs
+require_once dirname(__FILE__).'/LangsMock.php';
+
 class SalaryImportParserTest extends TestCase
 {
 	/**
@@ -59,6 +62,7 @@ class SalaryImportParserTest extends TestCase
 		if (!self::$phpSpreadsheetAvailable) {
 			$this->markTestSkipped('PhpSpreadsheet not available');
 		}
+		initLangsMock();
 		$this->parser = new SalaryImportParser();
 	}
 
@@ -210,12 +214,13 @@ class SalaryImportParserTest extends TestCase
 			$spreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
 			$sheet = $spreadsheet->getActiveSheet();
 
-			// Headers: "Name", empty, "Amount", null, "Date"
-			$sheet->setCellValue('A1', 'Name');
+			// Headers: "MyName", empty, "MyValue", null, "MyDate"
+			// Use custom names to avoid column normalization (this test is about empty headers)
+			$sheet->setCellValue('A1', 'MyName');
 			$sheet->setCellValue('B1', '');      // Empty string header
-			$sheet->setCellValue('C1', 'Amount');
+			$sheet->setCellValue('C1', 'MyValue');
 			$sheet->setCellValue('D1', null);    // Null header
-			$sheet->setCellValue('E1', 'Date');
+			$sheet->setCellValue('E1', 'MyDate');
 
 			// Data row 1
 			$sheet->setCellValue('A2', 'John');
@@ -242,9 +247,9 @@ class SalaryImportParserTest extends TestCase
 
 			// Check headers - should only have non-empty headers
 			$headers = $this->parser->getHeaders();
-			$this->assertContains('Name', $headers);
-			$this->assertContains('Amount', $headers);
-			$this->assertContains('Date', $headers);
+			$this->assertContains('MyName', $headers);
+			$this->assertContains('MyValue', $headers);
+			$this->assertContains('MyDate', $headers);
 			$this->assertNotContains('', $headers, 'Empty headers should be skipped');
 			$this->assertNotContains(null, $headers, 'Null headers should be skipped');
 
@@ -252,15 +257,15 @@ class SalaryImportParserTest extends TestCase
 			$this->assertEquals(2, $this->parser->getRowCount());
 
 			$line1 = $this->parser->getLine(0);
-			$this->assertEquals('John', $line1['Name']);
-			$this->assertEquals(100, $line1['Amount']);
-			$this->assertEquals('2024-01-15', $line1['Date']);
+			$this->assertEquals('John', $line1['MyName']);
+			$this->assertEquals(100, $line1['MyValue']);
+			$this->assertEquals('2024-01-15', $line1['MyDate']);
 			$this->assertArrayNotHasKey('', $line1, 'Data should not have empty key');
 
 			$line2 = $this->parser->getLine(1);
-			$this->assertEquals('Jane', $line2['Name']);
-			$this->assertEquals(200, $line2['Amount']);
-			$this->assertEquals('2024-01-16', $line2['Date']);
+			$this->assertEquals('Jane', $line2['MyName']);
+			$this->assertEquals(200, $line2['MyValue']);
+			$this->assertEquals('2024-01-16', $line2['MyDate']);
 		} finally {
 			@unlink($tempFile);
 		}

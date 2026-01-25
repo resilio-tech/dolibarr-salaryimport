@@ -9,6 +9,7 @@
 use PHPUnit\Framework\TestCase;
 
 require_once dirname(__FILE__).'/../../../class/SalaryImportValidator.class.php';
+require_once dirname(__FILE__).'/LangsMock.php';
 
 class SalaryImportValidatorTest extends TestCase
 {
@@ -19,6 +20,7 @@ class SalaryImportValidatorTest extends TestCase
 
 	protected function setUp(): void
 	{
+		initLangsMock();
 		$this->validator = new SalaryImportValidator();
 	}
 
