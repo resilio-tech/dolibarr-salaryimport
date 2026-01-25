@@ -57,10 +57,62 @@ class SalaryImportParser
 	protected $filePath;
 
 	/**
+	 * @var array Column name mapping (French and English to internal keys)
+	 */
+	protected $columnMapping = array(
+		// French
+		'prénom' => 'Prénom',
+		'nom' => 'Nom',
+		'date de paiement' => 'Date de paiement',
+		'montant' => 'Montant',
+		'libellé' => 'Libellé',
+		'date de début' => 'Date de début',
+		'date de fin' => 'Date de fin',
+		'type de paiement' => 'Type de paiement',
+		'payé' => 'Payé',
+		'compte bancaire' => 'Compte bancaire',
+		// English
+		'first name' => 'Prénom',
+		'firstname' => 'Prénom',
+		'last name' => 'Nom',
+		'lastname' => 'Nom',
+		'payment date' => 'Date de paiement',
+		'amount' => 'Montant',
+		'label' => 'Libellé',
+		'start date' => 'Date de début',
+		'end date' => 'Date de fin',
+		'payment type' => 'Type de paiement',
+		'paid' => 'Payé',
+		'bank account' => 'Compte bancaire',
+	);
+
+	/**
 	 * Constructor
 	 */
 	public function __construct()
 	{
+	}
+
+	/**
+	 * Normalize a column header to internal key
+	 *
+	 * @param string $header Raw header from Excel
+	 * @return string Normalized internal key or original header if not found
+	 */
+	protected function normalizeHeader($header)
+	{
+		if (!is_string($header)) {
+			return $header;
+		}
+
+		$normalized = strtolower(trim($header));
+
+		if (isset($this->columnMapping[$normalized])) {
+			return $this->columnMapping[$normalized];
+		}
+
+		// Return original if no mapping found
+		return $header;
 	}
 
 	/**
@@ -74,6 +126,11 @@ class SalaryImportParser
 	 */
 	public function fixEncoding($value)
 	{
+		// Convert RichText objects to string
+		if ($value instanceof \PhpOffice\PhpSpreadsheet\RichText\RichText) {
+			$value = $value->getPlainText();
+		}
+
 		if (!is_string($value)) {
 			return $value;
 		}
@@ -122,13 +179,6 @@ class SalaryImportParser
 		}
 
 		try {
-			// PhpSpreadsheet 1.12 uses File::realpath() which calls file_exists() on paths
-			// like "/xl/worksheets/sheet1.xml" (internal ZIP paths). This triggers open_basedir
-			// errors when open_basedir is configured.
-			//
-			// setUseUploadTempDirectory(true) helps with temp file creation but doesn't fix
-			// the realpath issue. The real fix requires the XLSX file path to resolve correctly.
-			//
 			// Ensure we use upload temp directory for any temp files PhpSpreadsheet creates
 			File::setUseUploadTempDirectory(true);
 
@@ -150,7 +200,8 @@ class SalaryImportParser
 			for ($col = 1; $col <= $countColumns; $col++) {
 				$header = $this->fixEncoding($sheet->getCellByColumnAndRow($col, 1)->getValue());
 				if ($header !== null && $header !== '') {
-					$this->headers[$col] = $header;
+					// Normalize header to internal key (supports French and English)
+					$this->headers[$col] = $this->normalizeHeader($header);
 				}
 			}
 

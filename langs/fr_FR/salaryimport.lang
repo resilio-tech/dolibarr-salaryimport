@@ -40,3 +40,61 @@ SalaryImportAboutPage = Page à propos d'Import de Salaires
 # Permissions
 #
 PermSalaryImportRead = Accéder à l'import de salaires
+
+#
+# Import pages
+#
+SalaryImportArea = Import de salaires
+
+# Import steps
+SalaryImportStep1 = Import de salaires (1/3) - Sélection des fichiers
+SalaryImportStep2 = Import de salaires (2/3) - Prévisualisation
+SalaryImportStep3 = Import de salaires (3/3) - Confirmation
+
+# Form labels
+SalaryXlsxFile = Fichier XLSX des salaires
+SalaryPdfZipFile = Fichier ZIP avec les fiches de paie (optionnel)
+SelectXlsxFile = Sélectionnez un fichier Excel (.xlsx)
+SelectZipFile = Sélectionnez un fichier ZIP contenant les PDF
+
+# Guide
+XlsxFormatGuide = Format du fichier Excel attendu
+XlsxFormatInfo = Le fichier Excel doit contenir les colonnes suivantes dans la première ligne (noms français ou anglais acceptés) :
+XlsxColumnFirstname = Prénom / First name
+XlsxColumnLastname = Nom / Last name
+XlsxColumnPaymentDate = Date de paiement / Payment date
+XlsxColumnAmount = Montant / Amount
+XlsxColumnLabel = Libellé / Label
+XlsxColumnStartDate = Date de début / Start date
+XlsxColumnEndDate = Date de fin / End date
+XlsxColumnPaymentType = Type de paiement / Payment type
+XlsxColumnPaid = Payé (oui/non ou yes/no)
+XlsxColumnBankAccount = Compte bancaire / Bank account
+
+# Preview
+PreviewTitle = Prévisualisation des données
+RowsDetected = %s ligne(s) détectée(s)
+PdfAttached = PDF joint
+NoPdfAttached = Aucun
+
+# Buttons
+SendFiles = Envoyer les fichiers
+ConfirmImport = Confirmer l'import
+BackToImport = Retour à l'import
+
+# Messages
+ImportSuccess = Import terminé avec succès : %s salaire(s) importé(s)
+ImportError = Erreur lors de l'import
+NoDataToImport = Aucune donnée à importer
+ErrorDuringImport = Erreur lors de l'import du fichier
+
+# Table headers
+EmployeeName = Nom du salarié
+PaymentDate = Date de paiement
+Amount = Montant
+PaymentType = Type de paiement
+Label = Libellé
+StartDate = Date de début
+EndDate = Date de fin
+Paid = Payé
+PdfFile = Fichier PDF

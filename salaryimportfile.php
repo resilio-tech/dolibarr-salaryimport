@@ -108,6 +108,8 @@ $formfile = new FormFile($db);
 
 llxHeader("", $langs->trans("SalaryImportArea"));
 
+print load_fiche_titre($langs->trans("SalaryImportStep2"), '', 'salaryimport.png@salaryimport');
+
 $file = $_FILES['file'];
 $zip = $_FILES['zip'];
 
@@ -138,15 +140,22 @@ try {
 	$headers = $service->getPreviewHeaders();
 	$lines = $service->getParsedLines();
 
+	print dol_get_fiche_head(array(), '');
+
+	// Summary message
+	print '<div class="opacitymedium marginbottomonly">';
+	print $langs->trans("RowsDetected", count($previewData));
+	print '</div>';
+
 	// Add PDF column to headers for display
 	$displayHeaders = $headers;
-	$displayHeaders[count($displayHeaders) + 1] = 'Fichier PDF joint';
+	$displayHeaders[count($displayHeaders) + 1] = $langs->trans("PdfFile");
 
 	// Display preview table
-	print '<table class="noborder" width="100%">';
+	print '<table class="noborder centpercent">';
 	print '<tr class="liste_titre">';
 	foreach ($displayHeaders as $header) {
-		print '<td>'.htmlspecialchars($header).'</td>';
+		print '<th class="left">'.htmlspecialchars($header).'</th>';
 	}
 	print '</tr>';
 
@@ -173,15 +182,20 @@ try {
 		}
 
 		// PDF column
-		print '<td>'.htmlspecialchars($row['pdf_display']).'</td>';
+		$pdfDisplay = !empty($row['pdf_display']) ? $row['pdf_display'] : $langs->trans("NoPdfAttached");
+		print '<td>'.htmlspecialchars($pdfDisplay).'</td>';
 		print '</tr>';
 	}
 	print '</table>';
+
+	print dol_get_fiche_end();
 
 	// Build confirmation form
 	$formData = $service->serializeForForm();
 
 	print '<form method="POST" action="'.dol_buildpath('/custom/salaryimport/salaryimportconfirm.php', 1).'" enctype="multipart/form-data">';
+	print '<input type="hidden" name="token" value="'.newToken().'">';
+	print '<input type="hidden" name="action" value="confirm">';
 
 	foreach ($formData as $index => $row) {
 		foreach ($row as $key => $value) {
@@ -189,9 +203,12 @@ try {
 		}
 	}
 
-	print '<input type="submit" class="button" value="Envoyer">';
-	print '<input type="hidden" name="token" value="'.newToken().'">';
-	print '<input type="hidden" name="action" value="confirm">';
+	print '<div class="center">';
+	print '<input type="submit" class="button" value="'.$langs->trans("ConfirmImport").'">';
+	print ' &nbsp; ';
+	print '<a class="button button-cancel" href="'.dol_buildpath('/custom/salaryimport/salaryimportindex.php', 1).'">'.$langs->trans("Cancel").'</a>';
+	print '</div>';
+
 	print '</form>';
 
 } catch (Exception $e) {
@@ -200,8 +217,11 @@ try {
 		$service->cleanup();
 	}
 
-	print "<h1>Erreur lors de l'import du fichier</h1>";
-	print "<p>Erreur : ".$e->getMessage()."</p>";
+	setEventMessages($langs->trans("ErrorDuringImport").': '.$e->getMessage(), null, 'errors');
+
+	print '<div class="center">';
+	print '<a class="button" href="'.dol_buildpath('/custom/salaryimport/salaryimportindex.php', 1).'">'.$langs->trans("BackToImport").'</a>';
+	print '</div>';
 }
 
 // End of page

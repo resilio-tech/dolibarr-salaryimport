@@ -102,30 +102,34 @@ $formfile = new FormFile($db);
 
 llxHeader("", $langs->trans("SalaryImportArea"));
 
+print load_fiche_titre($langs->trans("SalaryImportStep3"), '', 'salaryimport.png@salaryimport');
+
 try {
 	$t_data = GETPOST('t_data', 'array');
 
 	if (empty($t_data)) {
-		throw new Exception('Aucune donnée à importer');
+		throw new Exception($langs->trans("NoDataToImport"));
 	}
 
-	// Display preview table
+	print dol_get_fiche_head(array(), '');
+
+	// Display summary table
 	$labels = array(
-		'Nom du salarié',
-		'Date de paiement',
-		'Montant',
-		'Type de paiement',
-		'Libellé',
-		'Date de début',
-		'Date de fin',
-		'Payé',
-		'PDF'
+		$langs->trans("EmployeeName"),
+		$langs->trans("PaymentDate"),
+		$langs->trans("Amount"),
+		$langs->trans("PaymentType"),
+		$langs->trans("Label"),
+		$langs->trans("StartDate"),
+		$langs->trans("EndDate"),
+		$langs->trans("Paid"),
+		$langs->trans("PdfFile")
 	);
 
-	print '<table class="noborder" width="100%">';
+	print '<table class="noborder centpercent">';
 	print '<tr class="liste_titre">';
 	foreach ($labels as $label) {
-		print '<td>' . htmlspecialchars($label) . '</td>';
+		print '<th class="left">' . htmlspecialchars($label) . '</th>';
 	}
 	print '</tr>';
 
@@ -138,9 +142,9 @@ try {
 		print '<td>' . htmlspecialchars($row['label']) . '</td>';
 		print '<td>' . htmlspecialchars($row['datesp']) . '</td>';
 		print '<td>' . htmlspecialchars($row['dateep']) . '</td>';
-		print '<td>' . ($row['paye'] ? 'Oui' : 'Non') . '</td>';
+		print '<td>' . ($row['paye'] ? $langs->trans("Yes") : $langs->trans("No")) . '</td>';
 
-		$pdfDisplay = '';
+		$pdfDisplay = $langs->trans("NoPdfAttached");
 		if (!empty($row['pdf'])) {
 			$pdfDisplay = basename($row['pdf']);
 		}
@@ -148,6 +152,8 @@ try {
 		print '</tr>';
 	}
 	print '</table>';
+
+	print dol_get_fiche_end();
 
 	// Initialize service and execute import
 	$service = new SalaryImportService($db, $user);
@@ -160,19 +166,20 @@ try {
 
 	$db->commit();
 
-	print '<div class="info">';
-	print '<p>Import terminé avec succès: ' . $importedCount . ' salaire(s) importé(s)</p>';
-	print '</div>';
+	setEventMessages($langs->trans("ImportSuccess", $importedCount), null, 'mesgs');
 
-	print '<p><a href="'.dol_buildpath('/custom/salaryimport/salaryimportindex.php', 1).'" class="button">Retour</a></p>';
+	print '<div class="center">';
+	print '<a class="button" href="'.dol_buildpath('/custom/salaryimport/salaryimportindex.php', 1).'">'.$langs->trans("BackToImport").'</a>';
+	print '</div>';
 
 } catch (Exception $e) {
 	$db->rollback();
 
-	print "<h1>Erreur lors de l'import</h1>";
-	print "<p>Erreur : " . $e->getMessage() . "</p>";
+	setEventMessages($langs->trans("ImportError").': '.$e->getMessage(), null, 'errors');
 
-	print '<p><a href="'.dol_buildpath('/custom/salaryimport/salaryimportindex.php', 1).'" class="button">Retour</a></p>';
+	print '<div class="center">';
+	print '<a class="button" href="'.dol_buildpath('/custom/salaryimport/salaryimportindex.php', 1).'">'.$langs->trans("BackToImport").'</a>';
+	print '</div>';
 }
 
 // End of page

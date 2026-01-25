@@ -151,9 +151,14 @@ class SalaryImportService
 	{
 		$this->errors = array();
 
+		if (empty($fileData) || empty($fileData['name'])) {
+			$this->errors[] = 'Aucun fichier XLSX fourni';
+			return -1;
+		}
+
 		if ($fileData['error'] != 0) {
 			$this->errors[] = 'Erreur lors de l\'envoi du fichier de salaire';
-			return -1;
+			return -2;
 		}
 
 		$filename = $fileData['name'];
