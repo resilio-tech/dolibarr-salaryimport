@@ -98,3 +98,66 @@ StartDate = Start date
 EndDate = End date
 Paid = Paid
 PdfFile = PDF file
+
+#
+# Error messages
+#
+
+# Upload errors
+ErrorNoXlsxFile = No XLSX file provided
+ErrorUploadXlsx = Error uploading salary file
+ErrorXlsxFormat = Salary file must be in xlsx format
+ErrorUploadZip = Error uploading PDF zip file
+ErrorZipFormat = PDF file must be in zip format
+
+# File errors
+ErrorFileNotFound = File not found: %s
+ErrorFileNotReadable = File is not readable: %s
+ErrorFileMustBeXlsx = File must be in XLSX format, got: %s
+ErrorCannotReadXlsx = Cannot read XLSX file: %s
+ErrorNoDataRows = No data rows found in file
+ErrorParsingXlsx = Error parsing XLSX file: %s
+
+# Validation errors
+ErrorEmptyFirstnameOrLastname = First name or last name empty at row %s
+ErrorEmptyPaymentDate = Payment date empty at row %s
+ErrorInvalidPaymentDate = Payment date (%s) invalid at row %s
+ErrorEmptyOrInvalidAmount = Amount empty or invalid at row %s
+ErrorEmptyLabel = Label empty at row %s
+ErrorEmptyStartDate = Start date empty at row %s
+ErrorInvalidStartDate = Start date (%s) invalid at row %s
+ErrorEmptyEndDate = End date empty at row %s
+ErrorInvalidEndDate = End date (%s) invalid at row %s
+ErrorEmptyPaymentType = Payment type empty at row %s
+ErrorEmptyPaid = Paid field empty at row %s
+ErrorInvalidPaid = Paid field invalid (must be yes/no) at row %s
+ErrorEmptyBankAccount = Bank account empty at row %s
+
+# Lookup errors
+ErrorUserNotFound = User not found at row %s
+ErrorPaymentTypeNotFound = Payment type '%s' not found at row %s
+ErrorBankAccountNotFound = Bank account '%s' not found at row %s
+ErrorDatabaseQuery = Database error: %s
+
+# ZIP errors
+ErrorZipNotFound = ZIP file not found: %s
+ErrorZipOpen = Failed to open ZIP archive: %s
+ErrorZipExtract = Failed to extract ZIP archive to: %s
+
+# Persist errors
+ErrorGetLastSalaryRef = Error getting last salary ref: %s
+ErrorGetLastPaymentRef = Error getting last payment ref: %s
+ErrorInsertSalary = Error inserting salary: %s
+ErrorInsertBankTransaction = Error inserting bank transaction: %s
+ErrorInsertBankUrl = Error inserting bank URL: %s
+ErrorInsertPaymentSalary = Error inserting payment salary: %s
+ErrorCreateDirectory = Failed to create directory: %s
+ErrorMovePdf = Failed to move PDF file to: %s
+ErrorIndexPdf = Failed to index PDF file in database
+ErrorPersistRow = Error persisting row %s: %s
+
+# Cleanup errors
+ErrorDeleteXlsx = Failed to delete XLSX file
+ErrorDeleteZip = Failed to delete ZIP file: %s
+ErrorDeleteFile = Failed to delete file: %s
+ErrorDeleteFolder = Failed to delete folder: %s

@@ -89,11 +89,13 @@ class SalaryImportPersister
 	 */
 	public function initCounters()
 	{
+		global $langs;
+
 		// Get last salary ref
 		$sql = "SELECT ref FROM ".MAIN_DB_PREFIX."salary ORDER BY CAST(ref AS UNSIGNED) DESC LIMIT 1";
 		$result = $this->db->query($sql);
 		if (!$result) {
-			$this->errors[] = 'Error getting last salary ref: '.$this->db->lasterror();
+			$this->errors[] = $langs->trans('ErrorGetLastSalaryRef', $this->db->lasterror());
 			return -1;
 		}
 		$obj = $this->db->fetch_object($result);
@@ -103,7 +105,7 @@ class SalaryImportPersister
 		$sql = "SELECT ref FROM ".MAIN_DB_PREFIX."payment_salary ORDER BY CAST(ref AS UNSIGNED) DESC LIMIT 1";
 		$result = $this->db->query($sql);
 		if (!$result) {
-			$this->errors[] = 'Error getting last payment ref: '.$this->db->lasterror();
+			$this->errors[] = $langs->trans('ErrorGetLastPaymentRef', $this->db->lasterror());
 			return -2;
 		}
 		$obj = $this->db->fetch_object($result);
@@ -179,7 +181,8 @@ class SalaryImportPersister
 
 		$result = $this->db->query($sql);
 		if (!$result) {
-			$this->errors[] = 'Error inserting salary: '.$this->db->lasterror();
+			global $langs;
+			$this->errors[] = $langs->trans('ErrorInsertSalary', $this->db->lasterror());
 			return -1;
 		}
 
@@ -212,7 +215,8 @@ class SalaryImportPersister
 
 		$result = $this->db->query($sql);
 		if (!$result) {
-			$this->errors[] = 'Error inserting bank transaction: '.$this->db->lasterror();
+			global $langs;
+			$this->errors[] = $langs->trans('ErrorInsertBankTransaction', $this->db->lasterror());
 			return -1;
 		}
 
@@ -243,7 +247,8 @@ class SalaryImportPersister
 
 		$result = $this->db->query($sql);
 		if (!$result) {
-			$this->errors[] = 'Error inserting bank URL: '.$this->db->lasterror();
+			global $langs;
+			$this->errors[] = $langs->trans('ErrorInsertBankUrl', $this->db->lasterror());
 			return -1;
 		}
 
@@ -288,7 +293,8 @@ class SalaryImportPersister
 
 		$result = $this->db->query($sql);
 		if (!$result) {
-			$this->errors[] = 'Error inserting payment salary: '.$this->db->lasterror();
+			global $langs;
+			$this->errors[] = $langs->trans('ErrorInsertPaymentSalary', $this->db->lasterror());
 			return -1;
 		}
 
@@ -304,6 +310,8 @@ class SalaryImportPersister
 	 */
 	public function movePdfToSalary($pdfPath, $salaryId)
 	{
+		global $langs;
+
 		if (empty($pdfPath) || !file_exists($pdfPath)) {
 			return 1; // No PDF to move is not an error
 		}
@@ -312,7 +320,7 @@ class SalaryImportPersister
 
 		if (!is_dir($destDir)) {
 			if (!dol_mkdir($destDir)) {
-				$this->errors[] = 'Failed to create directory: '.$destDir;
+				$this->errors[] = $langs->trans('ErrorCreateDirectory', $destDir);
 				return -1;
 			}
 		}
@@ -321,7 +329,7 @@ class SalaryImportPersister
 		$destPath = $destDir.'/'.$filename;
 
 		if (!dol_move($pdfPath, $destPath)) {
-			$this->errors[] = 'Failed to move PDF file to: '.$destPath;
+			$this->errors[] = $langs->trans('ErrorMovePdf', $destPath);
 			return -2;
 		}
 
@@ -339,7 +347,7 @@ class SalaryImportPersister
 		);
 
 		if ($result < 0) {
-			$this->errors[] = 'Failed to index PDF file in database';
+			$this->errors[] = $langs->trans('ErrorIndexPdf');
 			return -3;
 		}
 
@@ -469,6 +477,7 @@ class SalaryImportPersister
 	 */
 	public function persistAll($enrichedRows)
 	{
+		global $langs;
 		$this->errors = array();
 		$results = array();
 
@@ -482,7 +491,7 @@ class SalaryImportPersister
 			$result = $this->persistRow($data);
 
 			if (empty($result)) {
-				$this->errors[] = 'Error persisting row '.$rowNum.': '.implode(', ', $this->errors);
+				$this->errors[] = $langs->trans('ErrorPersistRow', $rowNum, implode(', ', $this->errors));
 			} else {
 				$results[$index] = $result;
 			}

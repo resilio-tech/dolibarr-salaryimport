@@ -149,15 +149,16 @@ class SalaryImportService
 	 */
 	public function handleXlsxUpload($fileData)
 	{
+		global $langs;
 		$this->errors = array();
 
 		if (empty($fileData) || empty($fileData['name'])) {
-			$this->errors[] = 'Aucun fichier XLSX fourni';
+			$this->errors[] = $langs->trans('ErrorNoXlsxFile');
 			return -1;
 		}
 
 		if ($fileData['error'] != 0) {
-			$this->errors[] = 'Erreur lors de l\'envoi du fichier de salaire';
+			$this->errors[] = $langs->trans('ErrorUploadXlsx');
 			return -2;
 		}
 
@@ -165,14 +166,14 @@ class SalaryImportService
 		$ext = strtolower(pathinfo($filename, PATHINFO_EXTENSION));
 
 		if ($ext !== 'xlsx') {
-			$this->errors[] = 'Le fichier de salaire doit être au format xlsx';
+			$this->errors[] = $langs->trans('ErrorXlsxFormat');
 			return -2;
 		}
 
 		$destPath = $this->workDir.'/'.$filename;
 
 		if (!dol_move_uploaded_file($fileData['tmp_name'], $destPath, 1, 0, 0)) {
-			$this->errors[] = 'Erreur lors de l\'envoi du fichier de salaire';
+			$this->errors[] = $langs->trans('ErrorUploadXlsx');
 			return -3;
 		}
 
@@ -188,13 +189,15 @@ class SalaryImportService
 	 */
 	public function handleZipUpload($fileData)
 	{
+		global $langs;
+
 		// No ZIP file provided is not an error
 		if (!$fileData || $fileData['size'] == 0) {
 			return 0;
 		}
 
 		if ($fileData['error'] != 0) {
-			$this->errors[] = 'Erreur lors de l\'envoi du fichier zip de PDF';
+			$this->errors[] = $langs->trans('ErrorUploadZip');
 			return -1;
 		}
 
@@ -202,14 +205,14 @@ class SalaryImportService
 		$ext = strtolower(pathinfo($filename, PATHINFO_EXTENSION));
 
 		if ($ext !== 'zip') {
-			$this->errors[] = 'Le fichier de PDF doit être au format zip';
+			$this->errors[] = $langs->trans('ErrorZipFormat');
 			return -2;
 		}
 
 		$destPath = $this->workDir.'/'.$filename;
 
 		if (!dol_move_uploaded_file($fileData['tmp_name'], $destPath, 1, 0, 0)) {
-			$this->errors[] = 'Erreur lors de l\'envoi du fichier zip de PDF';
+			$this->errors[] = $langs->trans('ErrorUploadZip');
 			return -3;
 		}
 
@@ -234,11 +237,12 @@ class SalaryImportService
 	 */
 	public function processForPreview()
 	{
+		global $langs;
 		$this->errors = array();
 		$this->previewData = array();
 
 		if (empty($this->uploadedXlsxName)) {
-			$this->errors[] = 'No XLSX file uploaded';
+			$this->errors[] = $langs->trans('ErrorNoXlsxFile');
 			return -1;
 		}
 
@@ -279,7 +283,7 @@ class SalaryImportService
 			if (!empty($pdfPath)) {
 				$row['pdf_display'] = basename($pdfPath);
 			} else {
-				$row['pdf_display'] = 'Aucun';
+				$row['pdf_display'] = $langs->trans('NoPdfAttached');
 			}
 		}
 
@@ -325,10 +329,11 @@ class SalaryImportService
 	 */
 	public function executeImport($data)
 	{
+		global $langs;
 		$this->errors = array();
 
 		if (empty($data)) {
-			$this->errors[] = 'No data to import';
+			$this->errors[] = $langs->trans('NoDataToImport');
 			return -1;
 		}
 
@@ -348,6 +353,7 @@ class SalaryImportService
 	 */
 	public function cleanup()
 	{
+		global $langs;
 		$result = 1;
 
 		// Clean up XLSX
@@ -355,7 +361,7 @@ class SalaryImportService
 			$xlsxPath = $this->workDir.'/'.$this->uploadedXlsxName;
 			if (file_exists($xlsxPath)) {
 				if (!unlink($xlsxPath)) {
-					$this->errors[] = 'Failed to delete XLSX file';
+					$this->errors[] = $langs->trans('ErrorDeleteXlsx');
 					$result = -1;
 				}
 			}
