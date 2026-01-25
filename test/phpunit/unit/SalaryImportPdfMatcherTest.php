@@ -9,6 +9,7 @@
 use PHPUnit\Framework\TestCase;
 
 require_once dirname(__FILE__).'/../../../class/SalaryImportPdfMatcher.class.php';
+require_once dirname(__FILE__).'/LangsMock.php';
 
 class SalaryImportPdfMatcherTest extends TestCase
 {
@@ -24,6 +25,7 @@ class SalaryImportPdfMatcherTest extends TestCase
 
 	protected function setUp(): void
 	{
+		initLangsMock();
 		$this->testDir = sys_get_temp_dir().'/salaryimport_test_'.uniqid();
 		mkdir($this->testDir, 0755, true);
 		$this->matcher = new SalaryImportPdfMatcher($this->testDir);
