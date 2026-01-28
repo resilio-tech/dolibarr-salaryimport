@@ -95,9 +95,6 @@ if (!isModEnabled('salaryimport')) {
 if (!$user->hasRight('salaryimport', 'import', 'read')) {
 	accessforbidden();
 }
-if (empty($user->admin)) {
-	accessforbidden('Must be admin');
-}
 
 /*
  * View
