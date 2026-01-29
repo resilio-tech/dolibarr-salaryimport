@@ -153,6 +153,7 @@ ErrorInsertBankUrl = Error inserting bank URL: %s
 ErrorInsertPaymentSalary = Error inserting payment salary: %s
 ErrorCreateDirectory = Failed to create directory: %s
 ErrorMovePdf = Failed to move PDF file to: %s
+ErrorPdfNotFound = PDF file not found: %s
 ErrorIndexPdf = Failed to index PDF file in database
 ErrorPersistRow = Error persisting row %s: %s
 
