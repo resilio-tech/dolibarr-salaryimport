@@ -52,6 +52,11 @@ class SalaryImportPersister
 	public $errors = array();
 
 	/**
+	 * @var array Warning messages (non-blocking errors like missing PDFs)
+	 */
+	public $warnings = array();
+
+	/**
 	 * @var int Counter for salary references
 	 */
 	protected $salaryRefCounter;
@@ -312,8 +317,15 @@ class SalaryImportPersister
 	{
 		global $langs;
 
-		if (empty($pdfPath) || !file_exists($pdfPath)) {
+		if (empty($pdfPath)) {
+			dol_syslog("SalaryImportPersister::movePdfToSalary - No PDF path provided for salary ".$salaryId, LOG_DEBUG);
 			return 1; // No PDF to move is not an error
+		}
+
+		if (!file_exists($pdfPath)) {
+			dol_syslog("SalaryImportPersister::movePdfToSalary - PDF file not found: ".$pdfPath." for salary ".$salaryId, LOG_WARNING);
+			$this->errors[] = $langs->trans('ErrorPdfNotFound', $pdfPath);
+			return -1;
 		}
 
 		$destDir = DOL_DATA_ROOT.'/salaries/'.$salaryId;
@@ -453,8 +465,13 @@ class SalaryImportPersister
 		if (!empty($data['pdf'])) {
 			$pdfResult = $this->movePdfToSalary($data['pdf'], $salaryId);
 			if ($pdfResult < 0) {
-				// Log error but don't fail the whole import
-				// PDF errors are non-critical
+				// Collect as warning with context (employee name, salary ID)
+				$context = $data['userName'].' (Salary #'.$salaryId.')';
+				foreach ($this->errors as $error) {
+					$this->warnings[] = $context.': '.$error;
+				}
+				dol_syslog("SalaryImportPersister::persistRow - Failed to move PDF for ".$context.": ".implode(', ', $this->errors), LOG_ERR);
+				$this->errors = array(); // Clear errors so they don't block
 			}
 		}
 

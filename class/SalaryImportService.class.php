@@ -75,6 +75,11 @@ class SalaryImportService
 	public $errors = array();
 
 	/**
+	 * @var array Warning messages
+	 */
+	public $warnings = array();
+
+	/**
 	 * @var string Working directory
 	 */
 	protected $workDir;
@@ -331,6 +336,7 @@ class SalaryImportService
 	{
 		global $langs;
 		$this->errors = array();
+		$this->warnings = array();
 
 		if (empty($data)) {
 			$this->errors[] = $langs->trans('NoDataToImport');
@@ -341,6 +347,11 @@ class SalaryImportService
 
 		if (!$this->persister->isValid()) {
 			$this->errors = array_merge($this->errors, $this->persister->errors);
+		}
+
+		// Collect warnings (e.g., PDF not found)
+		if (!empty($this->persister->warnings)) {
+			$this->warnings = array_merge($this->warnings, $this->persister->warnings);
 		}
 
 		return count($results);

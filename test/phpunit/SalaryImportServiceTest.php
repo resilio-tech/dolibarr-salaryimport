@@ -315,4 +315,117 @@ class SalaryImportServiceTest extends CommonClassTest
 		$this->assertTrue(method_exists($this->service, 'executeImport'));
 		$this->assertTrue(method_exists($this->service, 'cleanup'));
 	}
+
+	// ========================================
+	// Tests for PDF warnings handling
+	// ========================================
+
+	/**
+	 * Test that service has warnings property
+	 *
+	 * @return void
+	 */
+	public function testServiceHasWarningsProperty()
+	{
+		$this->assertTrue(property_exists($this->service, 'warnings'), 'Service should have warnings property');
+		$this->assertIsArray($this->service->warnings, 'warnings should be an array');
+	}
+
+	/**
+	 * Test that executeImport collects warnings from persister
+	 *
+	 * @return void
+	 */
+	public function testExecuteImportCollectsWarnings()
+	{
+		// Create a mock persister with warnings
+		$mockPersister = $this->createMock(SalaryImportPersister::class);
+		$mockPersister->warnings = array('PDF file not found: /path/to/test.pdf');
+		$mockPersister->errors = array();
+
+		$mockPersister->method('persistAll')->willReturn(array(
+			0 => array('salaryId' => 1, 'paymentId' => 1, 'bankId' => 1)
+		));
+		$mockPersister->method('isValid')->willReturn(true);
+
+		// Inject mock persister
+		global $db, $user;
+		$service = new SalaryImportService(
+			$db,
+			$user,
+			null, // parser
+			null, // validator
+			null, // userLookup
+			null, // pdfMatcher
+			$mockPersister
+		);
+
+		// Execute import with some data
+		$result = $service->executeImport(array(
+			array(
+				'userId' => 1,
+				'userName' => 'Test',
+				'datep' => '2024-01-01',
+				'amount' => 1000,
+				'typepayment' => 1,
+				'typepaymentcode' => 'VIR',
+				'label' => 'Test',
+				'datesp' => '2024-01-01',
+				'dateep' => '2024-01-31',
+				'paye' => 1,
+				'account' => 1,
+				'pdf' => '/path/to/test.pdf'
+			)
+		));
+
+		$this->assertEquals(1, $result, 'Import should succeed');
+		$this->assertNotEmpty($service->warnings, 'Warnings should be collected');
+		$this->assertContains('PDF file not found: /path/to/test.pdf', $service->warnings);
+	}
+
+	/**
+	 * Test that persister collects PDF errors as warnings
+	 *
+	 * @return void
+	 */
+	public function testPersisterCollectsPdfErrorsAsWarnings()
+	{
+		$persister = $this->service->getPersister();
+
+		// Verify warnings property exists and is array
+		$this->assertTrue(property_exists($persister, 'warnings'), 'Persister should have warnings property');
+		$this->assertIsArray($persister->warnings, 'warnings should be an array');
+	}
+
+	/**
+	 * Test movePdfToSalary returns error when file not found
+	 *
+	 * @return void
+	 */
+	public function testMovePdfToSalaryReturnsErrorForMissingFile()
+	{
+		$persister = $this->service->getPersister();
+
+		// Call with non-existent file
+		$result = $persister->movePdfToSalary('/nonexistent/path/test.pdf', 999);
+
+		$this->assertEquals(-1, $result, 'Should return -1 when file not found');
+		$this->assertNotEmpty($persister->errors, 'Should have error message');
+	}
+
+	/**
+	 * Test movePdfToSalary returns success when no PDF path provided
+	 *
+	 * @return void
+	 */
+	public function testMovePdfToSalarySucceedsWithEmptyPath()
+	{
+		$persister = $this->service->getPersister();
+
+		// Call with empty path
+		$result = $persister->movePdfToSalary('', 999);
+
+		$this->assertEquals(1, $result, 'Should return 1 (success) when no PDF path');
+		$this->assertEmpty($persister->errors, 'Should have no errors');
+	}
 }

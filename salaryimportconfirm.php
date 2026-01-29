@@ -165,6 +165,11 @@ try {
 
 	setEventMessages($langs->trans("ImportSuccess", $importedCount), null, 'mesgs');
 
+	// Display errors if any PDF files could not be attached (red banner)
+	if (!empty($service->warnings)) {
+		setEventMessages(null, $service->warnings, 'errors');
+	}
+
 	print '<div class="center">';
 	print '<a class="button" href="'.dol_buildpath('/custom/salaryimport/salaryimportindex.php', 1).'">'.$langs->trans("BackToImport").'</a>';
 	print '</div>';
