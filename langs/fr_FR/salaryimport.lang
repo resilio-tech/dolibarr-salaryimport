@@ -153,6 +153,7 @@ ErrorInsertBankUrl = Erreur lors de l'insertion du lien bancaire : %s
 ErrorInsertPaymentSalary = Erreur lors de l'insertion du paiement de salaire : %s
 ErrorCreateDirectory = Impossible de créer le répertoire : %s
 ErrorMovePdf = Impossible de déplacer le fichier PDF vers : %s
+ErrorPdfNotFound = Fichier PDF introuvable : %s
 ErrorIndexPdf = Impossible d'indexer le fichier PDF dans la base de données
 ErrorPersistRow = Erreur lors de la persistance de la ligne %s : %s
 

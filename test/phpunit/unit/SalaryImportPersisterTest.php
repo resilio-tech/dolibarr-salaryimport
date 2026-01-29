@@ -209,4 +209,98 @@ class SalaryImportPersisterTest extends TestCase
 		// Verify amount is negated
 		$this->assertStringContainsString('-$amount', $methodBody, 'Bank transaction should negate amount for expense');
 	}
+
+	// ========================================
+	// Tests for PDF error handling
+	// ========================================
+
+	/**
+	 * Verify that warnings property exists in SalaryImportPersister
+	 */
+	public function testPersisterHasWarningsProperty()
+	{
+		$sourceFile = dirname(__FILE__).'/../../../class/SalaryImportPersister.class.php';
+		$source = file_get_contents($sourceFile);
+
+		$this->assertStringContainsString('public $warnings', $source, 'Persister should have public $warnings property');
+	}
+
+	/**
+	 * Verify that movePdfToSalary returns error when file not found
+	 */
+	public function testMovePdfToSalaryReturnsErrorWhenFileNotFound()
+	{
+		$sourceFile = dirname(__FILE__).'/../../../class/SalaryImportPersister.class.php';
+		$source = file_get_contents($sourceFile);
+
+		// Find the movePdfToSalary method
+		$pattern = '/function movePdfToSalary\([^)]+\)\s*\{([\s\S]+?)\n\t\}/';
+		$this->assertMatchesRegularExpression($pattern, $source, 'Should find movePdfToSalary method');
+
+		preg_match($pattern, $source, $matches);
+		$methodBody = $matches[1];
+
+		// Verify file_exists check returns error (not success)
+		$this->assertStringContainsString('!file_exists($pdfPath)', $methodBody, 'Should check if file exists');
+		$this->assertStringContainsString('ErrorPdfNotFound', $methodBody, 'Should have ErrorPdfNotFound error message');
+		$this->assertStringContainsString('return -1', $methodBody, 'Should return -1 when file not found');
+	}
+
+	/**
+	 * Verify that movePdfToSalary logs warning when file not found
+	 */
+	public function testMovePdfToSalaryLogsWarningWhenFileNotFound()
+	{
+		$sourceFile = dirname(__FILE__).'/../../../class/SalaryImportPersister.class.php';
+		$source = file_get_contents($sourceFile);
+
+		// Find the movePdfToSalary method
+		$pattern = '/function movePdfToSalary\([^)]+\)\s*\{([\s\S]+?)\n\t\}/';
+		preg_match($pattern, $source, $matches);
+		$methodBody = $matches[1];
+
+		// Verify it logs with LOG_WARNING
+		$this->assertStringContainsString('dol_syslog', $methodBody, 'Should call dol_syslog');
+		$this->assertStringContainsString('LOG_WARNING', $methodBody, 'Should log with LOG_WARNING level when file not found');
+	}
+
+	/**
+	 * Verify that persistRow collects PDF errors as warnings
+	 */
+	public function testPersistRowCollectsPdfErrorsAsWarnings()
+	{
+		$sourceFile = dirname(__FILE__).'/../../../class/SalaryImportPersister.class.php';
+		$source = file_get_contents($sourceFile);
+
+		// Find the persistRow method
+		$pattern = '/function persistRow\([^)]*\)\s*\{([\s\S]+?)\n\t\}/';
+		preg_match($pattern, $source, $matches);
+		$methodBody = $matches[1];
+
+		// Verify PDF errors are collected as warnings with context
+		$this->assertStringContainsString('$this->warnings[]', $methodBody, 'persistRow should append to $this->warnings');
+		$this->assertStringContainsString('$context', $methodBody, 'persistRow should include context (employee name)');
+	}
+
+	/**
+	 * Verify that persistRow does not fail when PDF move fails
+	 */
+	public function testPersistRowDoesNotFailOnPdfError()
+	{
+		$sourceFile = dirname(__FILE__).'/../../../class/SalaryImportPersister.class.php';
+		$source = file_get_contents($sourceFile);
+
+		// Find the persistRow method
+		$pattern = '/function persistRow\([^)]*\)\s*\{([\s\S]+?)\n\t\}/';
+		preg_match($pattern, $source, $matches);
+		$methodBody = $matches[1];
+
+		// Find the section after movePdfToSalary call
+		$pdfMovePos = strpos($methodBody, 'movePdfToSalary');
+		$afterPdfMove = substr($methodBody, $pdfMovePos);
+
+		// Verify there's no "return $result" (empty) or "return array()" after PDF error
+		// The result should still be populated with salary data
+		$this->assertStringContainsString("'salaryId' => \$salaryId", $afterPdfMove, 'Should still return salaryId after PDF section');
+	}
 }
