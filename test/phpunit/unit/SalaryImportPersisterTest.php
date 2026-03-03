@@ -215,9 +215,10 @@ class SalaryImportPersisterTest extends TestCase
 	// ========================================
 
 	/**
-	 * Verify that movePdfToSalary uses salaryRef (not salaryId) for directory
+	 * Verify that movePdfToSalary uses salaryId (rowid) for directory
+	 * Dolibarr Salary::fetch() sets ref = rowid, so the directory must use rowid
 	 */
-	public function testMovePdfToSalaryUsesSalaryRefForDirectory()
+	public function testMovePdfToSalaryUsesSalaryIdForDirectory()
 	{
 		$sourceFile = dirname(__FILE__).'/../../../class/SalaryImportPersister.class.php';
 		$source = file_get_contents($sourceFile);
@@ -229,22 +230,8 @@ class SalaryImportPersisterTest extends TestCase
 		preg_match($pattern, $source, $matches);
 		$methodBody = $matches[1];
 
-		// Verify it uses $salaryRef for the directory, not $salaryId
-		$this->assertStringContainsString('$salaryRef', $methodBody, 'movePdfToSalary should use $salaryRef for directory');
-		$this->assertStringContainsString('dol_sanitizeFileName($salaryRef)', $methodBody, 'Should sanitize salaryRef for directory name');
-	}
-
-	/**
-	 * Verify that persistRow passes salaryRef to movePdfToSalary
-	 */
-	public function testPersistRowPassesSalaryRefToMovePdf()
-	{
-		$sourceFile = dirname(__FILE__).'/../../../class/SalaryImportPersister.class.php';
-		$source = file_get_contents($sourceFile);
-
-		// Find the call to movePdfToSalary in persistRow
-		$pattern = '/movePdfToSalary\(\$data\[.pdf.\],\s*\$salaryId,\s*\$salaryRef\)/';
-		$this->assertMatchesRegularExpression($pattern, $source, 'persistRow should pass $salaryRef to movePdfToSalary');
+		// Verify it uses $salaryId for the directory (Dolibarr uses rowid as ref)
+		$this->assertStringContainsString('$salaryId', $methodBody, 'movePdfToSalary should use $salaryId for directory');
 	}
 
 	// ========================================

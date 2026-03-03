@@ -329,8 +329,8 @@ class SalaryImportPersister
 			return -1;
 		}
 
-		// Dolibarr uses salary ref (not ID) for the file directory
-		$destDir = DOL_DATA_ROOT.'/salaries/'.dol_sanitizeFileName($salaryRef);
+		// Dolibarr Salary::fetch() sets ref = rowid, so directory uses rowid
+		$destDir = DOL_DATA_ROOT.'/salaries/'.$salaryId;
 
 		if (!is_dir($destDir)) {
 			if (!dol_mkdir($destDir)) {
@@ -361,8 +361,9 @@ class SalaryImportPersister
 		);
 
 		if ($result < 0) {
-			$this->errors[] = $langs->trans('ErrorIndexPdf');
-			return -3;
+			// Indexation failure is not critical - file is already moved
+			dol_syslog("SalaryImportPersister::movePdfToSalary - Failed to index PDF in database for salary ".$salaryId, LOG_WARNING);
+			$this->warnings[] = $langs->trans('ErrorIndexPdf');
 		}
 
 		return 1;
