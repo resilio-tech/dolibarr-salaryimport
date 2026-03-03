@@ -361,9 +361,8 @@ class SalaryImportPersister
 		);
 
 		if ($result < 0) {
-			// Indexation failure is not critical - file is already moved
-			dol_syslog("SalaryImportPersister::movePdfToSalary - Failed to index PDF in database for salary ".$salaryId, LOG_WARNING);
-			$this->warnings[] = $langs->trans('ErrorIndexPdf');
+			// Indexation failure is not critical - file is already in the right directory
+			dol_syslog("SalaryImportPersister::movePdfToSalary - Failed to index PDF in database for salary ".$salaryId." (may be duplicate)", LOG_DEBUG);
 		}
 
 		return 1;
