@@ -211,6 +211,43 @@ class SalaryImportPersisterTest extends TestCase
 	}
 
 	// ========================================
+	// Tests for PDF directory naming
+	// ========================================
+
+	/**
+	 * Verify that movePdfToSalary uses salaryRef (not salaryId) for directory
+	 */
+	public function testMovePdfToSalaryUsesSalaryRefForDirectory()
+	{
+		$sourceFile = dirname(__FILE__).'/../../../class/SalaryImportPersister.class.php';
+		$source = file_get_contents($sourceFile);
+
+		// Find the movePdfToSalary method
+		$pattern = '/function movePdfToSalary\([^)]+\)\s*\{([\s\S]+?)\n\t\}/';
+		$this->assertMatchesRegularExpression($pattern, $source, 'Should find movePdfToSalary method');
+
+		preg_match($pattern, $source, $matches);
+		$methodBody = $matches[1];
+
+		// Verify it uses $salaryRef for the directory, not $salaryId
+		$this->assertStringContainsString('$salaryRef', $methodBody, 'movePdfToSalary should use $salaryRef for directory');
+		$this->assertStringContainsString('dol_sanitizeFileName($salaryRef)', $methodBody, 'Should sanitize salaryRef for directory name');
+	}
+
+	/**
+	 * Verify that persistRow passes salaryRef to movePdfToSalary
+	 */
+	public function testPersistRowPassesSalaryRefToMovePdf()
+	{
+		$sourceFile = dirname(__FILE__).'/../../../class/SalaryImportPersister.class.php';
+		$source = file_get_contents($sourceFile);
+
+		// Find the call to movePdfToSalary in persistRow
+		$pattern = '/movePdfToSalary\(\$data\[.pdf.\],\s*\$salaryId,\s*\$salaryRef\)/';
+		$this->assertMatchesRegularExpression($pattern, $source, 'persistRow should pass $salaryRef to movePdfToSalary');
+	}
+
+	// ========================================
 	// Tests for PDF error handling
 	// ========================================
 

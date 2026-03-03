@@ -309,11 +309,12 @@ class SalaryImportPersister
 	/**
 	 * Move PDF file to salary directory and index it
 	 *
-	 * @param string $pdfPath  Source PDF file path
-	 * @param int    $salaryId Salary ID
+	 * @param string $pdfPath   Source PDF file path
+	 * @param int    $salaryId  Salary ID
+	 * @param string $salaryRef Salary reference (used for directory name, as Dolibarr expects)
 	 * @return int 1 on success, <0 on error
 	 */
-	public function movePdfToSalary($pdfPath, $salaryId)
+	public function movePdfToSalary($pdfPath, $salaryId, $salaryRef)
 	{
 		global $langs;
 
@@ -328,7 +329,8 @@ class SalaryImportPersister
 			return -1;
 		}
 
-		$destDir = DOL_DATA_ROOT.'/salaries/'.$salaryId;
+		// Dolibarr uses salary ref (not ID) for the file directory
+		$destDir = DOL_DATA_ROOT.'/salaries/'.dol_sanitizeFileName($salaryRef);
 
 		if (!is_dir($destDir)) {
 			if (!dol_mkdir($destDir)) {
@@ -463,7 +465,7 @@ class SalaryImportPersister
 
 		// Move PDF if present
 		if (!empty($data['pdf'])) {
-			$pdfResult = $this->movePdfToSalary($data['pdf'], $salaryId);
+			$pdfResult = $this->movePdfToSalary($data['pdf'], $salaryId, $salaryRef);
 			if ($pdfResult < 0) {
 				// Collect as warning with context (employee name, salary ID)
 				$context = $data['userName'].' (Salary #'.$salaryId.')';
