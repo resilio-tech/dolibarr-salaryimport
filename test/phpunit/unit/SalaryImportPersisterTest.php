@@ -234,6 +234,25 @@ class SalaryImportPersisterTest extends TestCase
 		$this->assertStringContainsString('$salaryId', $methodBody, 'movePdfToSalary should use $salaryId for directory');
 	}
 
+	/**
+	 * Verify that movePdfToSalary builds the directory from the module dir_output
+	 * and not a hardcoded DOL_DATA_ROOT path, so it stays correct under multicompany
+	 * (entity >= 2 stores data under DOL_DATA_ROOT/{entity}/salaries)
+	 */
+	public function testMovePdfToSalaryUsesDirOutputForEntity()
+	{
+		$sourceFile = dirname(__FILE__).'/../../../class/SalaryImportPersister.class.php';
+		$source = file_get_contents($sourceFile);
+
+		$pattern = '/function movePdfToSalary\([^)]+\)\s*\{([\s\S]+?)\n\t\}/';
+		preg_match($pattern, $source, $matches);
+		$methodBody = $matches[1];
+
+		// The destination must derive from dir_output (entity-aware), not a hardcoded path
+		$this->assertStringContainsString('salaries->dir_output', $methodBody, 'movePdfToSalary should use dir_output (entity-aware)');
+		$this->assertStringNotContainsString("DOL_DATA_ROOT.'/salaries/", $methodBody, 'movePdfToSalary should not hardcode the salaries data path');
+	}
+
 	// ========================================
 	// Tests for PDF error handling
 	// ========================================

@@ -329,8 +329,9 @@ class SalaryImportPersister
 			return -1;
 		}
 
-		// Dolibarr Salary::fetch() sets ref = rowid, so directory uses rowid
-		$destDir = DOL_DATA_ROOT.'/salaries/'.$salaryId;
+		// Dolibarr Salary::fetch() sets ref = rowid, so directory uses rowid.
+		// Use the module dir_output so the path stays correct under multicompany (entity >= 2).
+		$destDir = $this->conf->salaries->dir_output.'/'.$salaryId;
 
 		if (!is_dir($destDir)) {
 			if (!dol_mkdir($destDir)) {
