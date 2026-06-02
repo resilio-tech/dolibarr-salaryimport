@@ -309,9 +309,12 @@ class SalaryImportPersister
 	/**
 	 * Move PDF file to salary directory and index it
 	 *
-	 * @param string $pdfPath  Source PDF file path
-	 * @param int    $salaryId Salary ID
-	 * @return int 1 on success, <0 on error
+	 * Note: a database indexing failure is non-blocking (the file is already in the
+	 * right directory), so it is only logged and does not affect the return value.
+	 *
+	 * @param string $pdfPath   Source PDF file path
+	 * @param int    $salaryId  Salary ID
+	 * @return int 1 on success (including non-blocking index failure), <0 on file move error
 	 */
 	public function movePdfToSalary($pdfPath, $salaryId)
 	{
@@ -328,7 +331,11 @@ class SalaryImportPersister
 			return -1;
 		}
 
-		$destDir = DOL_DATA_ROOT.'/salaries/'.$salaryId;
+		// Dolibarr Salary::fetch() sets ref = rowid, so directory uses rowid.
+		// Use the module dir_output so the path stays correct under multicompany (entity >= 2).
+		// Fall back to the default path if the salaries module object is not available.
+		$salariesDir = isset($this->conf->salaries->dir_output) ? $this->conf->salaries->dir_output : DOL_DATA_ROOT.'/salaries';
+		$destDir = $salariesDir.'/'.$salaryId;
 
 		if (!is_dir($destDir)) {
 			if (!dol_mkdir($destDir)) {
@@ -340,14 +347,18 @@ class SalaryImportPersister
 		$filename = basename($pdfPath);
 		$destPath = $destDir.'/'.$filename;
 
-		if (!dol_move($pdfPath, $destPath)) {
+		// Move without auto-indexing: dol_move() would create an ecm_files row with no object
+		// link, which then collides on the (filepath, filename, entity) unique key with our
+		// own object-aware indexing below. We do the linked indexing ourselves instead.
+		if (!dol_move($pdfPath, $destPath, '0', 1, 0, 0)) {
 			$this->errors[] = $langs->trans('ErrorMovePdf', $destPath);
 			return -2;
 		}
 
-		// Index the file in database
+		// Index the file in database, linked to the salary object
 		$salary = new Salary($this->db);
 		$salary->id = $salaryId;
+		$salary->entity = $this->conf->entity;
 
 		$result = addFileIntoDatabaseIndex(
 			$destDir,
@@ -359,8 +370,8 @@ class SalaryImportPersister
 		);
 
 		if ($result < 0) {
-			$this->errors[] = $langs->trans('ErrorIndexPdf');
-			return -3;
+			// Indexation failure is not critical - file is already in the right directory
+			dol_syslog("SalaryImportPersister::movePdfToSalary - Failed to index PDF in database for salary ".$salaryId, LOG_WARNING);
 		}
 
 		return 1;
