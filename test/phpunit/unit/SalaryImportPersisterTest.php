@@ -230,8 +230,9 @@ class SalaryImportPersisterTest extends TestCase
 		preg_match($pattern, $source, $matches);
 		$methodBody = $matches[1];
 
-		// Verify it uses $salaryId for the directory (Dolibarr uses rowid as ref)
-		$this->assertStringContainsString('$salaryId', $methodBody, 'movePdfToSalary should use $salaryId for directory');
+		// Verify the directory itself is built from $salaryId (Dolibarr uses rowid as ref),
+		// not just that $salaryId appears somewhere (it is also used in logs and $salary->id)
+		$this->assertStringContainsString('.\'/\'.$salaryId', $methodBody, 'movePdfToSalary should build the directory from $salaryId');
 	}
 
 	/**

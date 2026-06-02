@@ -309,12 +309,14 @@ class SalaryImportPersister
 	/**
 	 * Move PDF file to salary directory and index it
 	 *
+	 * Note: a database indexing failure is non-blocking (the file is already in the
+	 * right directory), so it is only logged and does not affect the return value.
+	 *
 	 * @param string $pdfPath   Source PDF file path
 	 * @param int    $salaryId  Salary ID
-	 * @param string $salaryRef Salary reference (used for directory name, as Dolibarr expects)
-	 * @return int 1 on success, <0 on error
+	 * @return int 1 on success (including non-blocking index failure), <0 on file move error
 	 */
-	public function movePdfToSalary($pdfPath, $salaryId, $salaryRef)
+	public function movePdfToSalary($pdfPath, $salaryId)
 	{
 		global $langs;
 
@@ -363,7 +365,7 @@ class SalaryImportPersister
 
 		if ($result < 0) {
 			// Indexation failure is not critical - file is already in the right directory
-			dol_syslog("SalaryImportPersister::movePdfToSalary - Failed to index PDF in database for salary ".$salaryId." (may be duplicate)", LOG_DEBUG);
+			dol_syslog("SalaryImportPersister::movePdfToSalary - Failed to index PDF in database for salary ".$salaryId." (may be duplicate)", LOG_WARNING);
 		}
 
 		return 1;
@@ -466,7 +468,7 @@ class SalaryImportPersister
 
 		// Move PDF if present
 		if (!empty($data['pdf'])) {
-			$pdfResult = $this->movePdfToSalary($data['pdf'], $salaryId, $salaryRef);
+			$pdfResult = $this->movePdfToSalary($data['pdf'], $salaryId);
 			if ($pdfResult < 0) {
 				// Collect as warning with context (employee name, salary ID)
 				$context = $data['userName'].' (Salary #'.$salaryId.')';

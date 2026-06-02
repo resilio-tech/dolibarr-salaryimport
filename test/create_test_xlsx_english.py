@@ -2,6 +2,8 @@
 """
 Script to create a test XLSX file with English headers for salary import
 """
+import os
+
 from openpyxl import Workbook
 
 wb = Workbook()
@@ -37,6 +39,6 @@ for row_idx, row_data in enumerate(data, 2):
         ws.cell(row=row_idx, column=col_idx, value=value)
 
 # Save
-output_path = '/home/slordef/work/dolibarr/htdocs/custom/salaryimport/test/salaires_test_english.xlsx'
+output_path = os.path.join(os.path.dirname(__file__), 'salaires_test_english.xlsx')
 wb.save(output_path)
 print(f"Created: {output_path}")

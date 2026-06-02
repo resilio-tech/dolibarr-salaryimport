@@ -407,7 +407,7 @@ class SalaryImportServiceTest extends CommonClassTest
 		$persister = $this->service->getPersister();
 
 		// Call with non-existent file
-		$result = $persister->movePdfToSalary('/nonexistent/path/test.pdf', 999, '999');
+		$result = $persister->movePdfToSalary('/nonexistent/path/test.pdf', 999);
 
 		$this->assertEquals(-1, $result, 'Should return -1 when file not found');
 		$this->assertNotEmpty($persister->errors, 'Should have error message');
@@ -423,7 +423,7 @@ class SalaryImportServiceTest extends CommonClassTest
 		$persister = $this->service->getPersister();
 
 		// Call with empty path
-		$result = $persister->movePdfToSalary('', 999, '999');
+		$result = $persister->movePdfToSalary('', 999);
 
 		$this->assertEquals(1, $result, 'Should return 1 (success) when no PDF path');
 		$this->assertEmpty($persister->errors, 'Should have no errors');
