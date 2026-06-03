@@ -485,6 +485,24 @@ class SalaryImportValidatorTest extends TestCase
 		$this->assertTrue($hasError);
 	}
 
+	public function testValidateGroupsDateMismatch()
+	{
+		$lineA = $this->getGroupLine('2026-05-2', '2026-05-2-EUR', 'Marie', 'Martin', '2000', '2000', '5000');
+		$lineB = $this->getGroupLine('2026-05-2', '2026-05-2-CHF', 'Marie', 'Martin', '3000', '3000', '5000');
+		$lineB['Date de paiement'] = 45323; // different pay date than lineA
+
+		$validated = $this->validator->validateAll(array($lineA, $lineB));
+
+		$this->assertFalse($this->validator->validateGroups($validated));
+		$hasError = false;
+		foreach ($this->validator->errors as $error) {
+			if (strpos($error, 'dates différentes') !== false) {
+				$hasError = true;
+			}
+		}
+		$this->assertTrue($hasError);
+	}
+
 	public function testValidateGroupsMonoPaymentIsAGroupOfOne()
 	{
 		$lines = array($this->getGroupLine('2026-05-1', '2026-05-1-CHF', 'Jean', 'Dupont', '4500', '4500', '4500'));

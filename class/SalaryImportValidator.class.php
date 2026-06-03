@@ -374,6 +374,7 @@ class SalaryImportValidator
 	 *
 	 * Each notation forms a single salary paid in N payments. For every group this checks:
 	 *  - all rows belong to the same employee,
+	 *  - the pay date and period are identical on every row,
 	 *  - the total salary amount is identical on every row,
 	 *  - the sum of the CHF payment amounts equals the declared total.
 	 *
@@ -416,11 +417,26 @@ class SalaryImportValidator
 				$valid = false;
 			}
 
-			// 2. Identical total on every row
+			// 1b. Identical dates on every row: a salary has a single pay date and period,
+			// even when split into several payments (only the account/currency may differ).
+			$dateSignatures = array();
+			foreach ($rows as $r) {
+				$dateSignatures[
+					(isset($r['datep']) ? $r['datep'] : '').'|'
+					.(isset($r['datesp']) ? $r['datesp'] : '').'|'
+					.(isset($r['dateep']) ? $r['dateep'] : '')
+				] = true;
+			}
+			if (count($dateSignatures) > 1) {
+				$this->errors[] = $langs->trans('ErrorGroupDateMismatch', $notation, $rowList);
+				$valid = false;
+			}
+
+			// 2. Identical total on every row (compared rounded to 2 decimals to avoid float noise)
 			$totals = array();
 			foreach ($rows as $r) {
 				if (isset($r['total_salary_chf'])) {
-					$totals[(string) $r['total_salary_chf']] = true;
+					$totals[number_format((float) $r['total_salary_chf'], 2, '.', '')] = true;
 				}
 			}
 			if (count($totals) > 1) {
@@ -429,7 +445,8 @@ class SalaryImportValidator
 				continue; // ambiguous total: skip the sum check for this group
 			}
 
-			// 3. Sum of CHF payments equals the declared total
+			// 3. Sum of CHF payments equals the declared total.
+			// Round both to 2 decimals (the reconciliation must be exact to the cent).
 			$sumChf = 0.0;
 			foreach ($rows as $r) {
 				if (isset($r['amount_chf'])) {
@@ -437,7 +454,7 @@ class SalaryImportValidator
 				}
 			}
 			$total = isset($rows[0]['total_salary_chf']) ? $rows[0]['total_salary_chf'] : null;
-			if ($total !== null && abs($sumChf - $total) > 0.01) {
+			if ($total !== null && round($sumChf, 2) !== round((float) $total, 2)) {
 				$this->errors[] = $langs->trans('ErrorGroupSumMismatch', $notation, $rowList, $sumChf, $total);
 				$valid = false;
 			}

@@ -148,6 +148,7 @@ ErrorEmptyBankAccount = Bank account empty at row %s
 
 # Group validation errors
 ErrorGroupMultipleEmployees = Salary %s references several employees (rows %s)
+ErrorGroupDateMismatch = Salary %s has different dates across rows %s (a salary must have a single date)
 ErrorGroupTotalMismatch = Salary %s total differs across rows %s
 ErrorGroupSumMismatch = Salary %s (rows %s): the sum of CHF payments (%s) does not match the declared total (%s)
 

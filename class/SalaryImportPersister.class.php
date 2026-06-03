@@ -404,10 +404,19 @@ class SalaryImportPersister
 			}
 		}
 
+		// Sort the group by payment reference so the salary-level fields taken from the first row
+		// (account, payment type) do not depend on the XLSX row order. Dates are already validated
+		// identical across the group by SalaryImportValidator::validateGroups().
+		usort($rows, function ($a, $b) {
+			$refA = isset($a['payment_ref']) ? (string) $a['payment_ref'] : '';
+			$refB = isset($b['payment_ref']) ? (string) $b['payment_ref'] : '';
+			return strcmp($refA, $refB);
+		});
 		$first = reset($rows);
 
 		// One salary per notation: amount = total in company currency, label = notation.
-		// Salary-level date/account/type come from the first line of the group.
+		// Date/period are the same on every row; account/type come from the first row of the
+		// deterministically sorted group (they may legitimately differ between payments).
 		$salaryRef = $this->getNextSalaryRef();
 		$salaryId = $this->insertSalary(
 			$salaryRef,

@@ -50,6 +50,7 @@ class LangsMock
 		'ErrorInvalidPaid' => 'Payé invalide (doit être oui/non) à la ligne %s',
 		'ErrorEmptyBankAccount' => 'Compte bancaire vide à la ligne %s',
 		'ErrorGroupMultipleEmployees' => 'Le salaire %s référence plusieurs employés (lignes %s)',
+		'ErrorGroupDateMismatch' => 'Le salaire %s a des dates différentes selon les lignes %s (un salaire doit avoir une seule date)',
 		'ErrorGroupTotalMismatch' => 'Le total du salaire %s diffère selon les lignes %s',
 		'ErrorGroupSumMismatch' => 'Le salaire %s (lignes %s) : la somme des paiements CHF (%s) ne correspond pas au total déclaré (%s)',
 
