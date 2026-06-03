@@ -60,10 +60,14 @@ SelectZipFile = Sélectionnez un fichier ZIP contenant les PDF
 # Guide
 XlsxFormatGuide = Format du fichier Excel attendu
 XlsxFormatInfo = Le fichier Excel doit contenir les colonnes suivantes dans la première ligne (noms français ou anglais acceptés) :
+XlsxColumnSalaryNotation = Salaire / Salary (notation, ex. 2026-05-5)
+XlsxColumnPaymentRef = Réf paiement / Payment ref (ex. 2026-05-5-EUR)
 XlsxColumnFirstname = Prénom / First name
 XlsxColumnLastname = Nom / Last name
 XlsxColumnPaymentDate = Date de paiement / Payment date
-XlsxColumnAmount = Montant / Amount
+XlsxColumnAmountPaid = Montant payé / Amount paid (devise du compte)
+XlsxColumnAmountChf = Montant CHF / Amount CHF (devise société)
+XlsxColumnTotalSalaryChf = Salaire total CHF / Total salary CHF
 XlsxColumnLabel = Libellé / Label
 XlsxColumnStartDate = Date de début / Start date
 XlsxColumnEndDate = Date de fin / End date
@@ -78,6 +82,7 @@ PdfAttached = PDF joint
 NoPdfAttached = Aucun
 
 # Buttons
+DownloadXlsxTemplate = Télécharger le modèle XLSX
 SendFiles = Envoyer les fichiers
 ConfirmImport = Confirmer l'import
 BackToImport = Retour à l'import
@@ -90,8 +95,12 @@ ErrorDuringImport = Erreur lors de l'import du fichier
 
 # Table headers
 EmployeeName = Nom du salarié
+SalaryNotation = Salaire
+PaymentRef = Réf paiement
 PaymentDate = Date de paiement
 Amount = Montant
+AmountPaid = Montant payé
+AmountChf = Montant CHF
 PaymentType = Type de paiement
 Label = Libellé
 StartDate = Date de début
@@ -119,10 +128,14 @@ ErrorNoDataRows = Aucune ligne de données trouvée dans le fichier
 ErrorParsingXlsx = Erreur lors de l'analyse du fichier XLSX : %s
 
 # Validation errors
+ErrorEmptySalaryNotation = Notation de salaire vide à la ligne %s
+ErrorEmptyPaymentRef = Référence de paiement vide à la ligne %s
 ErrorEmptyFirstnameOrLastname = Prénom ou nom vide à la ligne %s
 ErrorEmptyPaymentDate = Date de paiement vide à la ligne %s
 ErrorInvalidPaymentDate = Date de paiement (%s) invalide à la ligne %s
-ErrorEmptyOrInvalidAmount = Montant vide ou invalide à la ligne %s
+ErrorEmptyOrInvalidAmount = Montant payé vide ou invalide à la ligne %s
+ErrorEmptyOrInvalidAmountChf = Montant CHF invalide à la ligne %s
+ErrorEmptyOrInvalidTotalSalary = Salaire total CHF vide ou invalide à la ligne %s
 ErrorEmptyLabel = Libellé vide à la ligne %s
 ErrorEmptyStartDate = Date de début vide à la ligne %s
 ErrorInvalidStartDate = Date de début (%s) invalide à la ligne %s
@@ -132,6 +145,11 @@ ErrorEmptyPaymentType = Type de paiement vide à la ligne %s
 ErrorEmptyPaid = Champ Payé vide à la ligne %s
 ErrorInvalidPaid = Champ Payé invalide (doit être oui/non) à la ligne %s
 ErrorEmptyBankAccount = Compte bancaire vide à la ligne %s
+
+# Group validation errors
+ErrorGroupMultipleEmployees = Le salaire %s référence plusieurs employés (lignes %s)
+ErrorGroupTotalMismatch = Le total du salaire %s diffère selon les lignes %s
+ErrorGroupSumMismatch = Le salaire %s (lignes %s) : la somme des paiements CHF (%s) ne correspond pas au total déclaré (%s)
 
 # Lookup errors
 ErrorUserNotFound = Utilisateur non trouvé à la ligne %s
@@ -156,6 +174,7 @@ ErrorMovePdf = Impossible de déplacer le fichier PDF vers : %s
 ErrorPdfNotFound = Fichier PDF introuvable : %s
 ErrorIndexPdf = Impossible d'indexer le fichier PDF dans la base de données
 ErrorPersistRow = Erreur lors de la persistance de la ligne %s : %s
+ErrorPersistGroup = Erreur lors de la persistance du salaire %s : %s
 
 # Cleanup errors
 ErrorDeleteXlsx = Impossible de supprimer le fichier XLSX

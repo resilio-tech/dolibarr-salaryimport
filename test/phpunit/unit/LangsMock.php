@@ -32,10 +32,14 @@ class LangsMock
 		'ErrorZipFormat' => 'PDF file must be in zip format',
 
 		// Validation errors (French for validator tests)
+		'ErrorEmptySalaryNotation' => 'Notation de salaire vide à la ligne %s',
+		'ErrorEmptyPaymentRef' => 'Référence de paiement vide à la ligne %s',
 		'ErrorEmptyFirstnameOrLastname' => 'Prénom ou nom vide à la ligne %s',
 		'ErrorEmptyPaymentDate' => 'Date de paiement vide à la ligne %s',
 		'ErrorInvalidPaymentDate' => 'Date de paiement (%s) invalide à la ligne %s',
-		'ErrorEmptyOrInvalidAmount' => 'Montant vide ou invalide à la ligne %s',
+		'ErrorEmptyOrInvalidAmount' => 'Montant payé vide ou invalide à la ligne %s',
+		'ErrorEmptyOrInvalidAmountChf' => 'Montant CHF invalide à la ligne %s',
+		'ErrorEmptyOrInvalidTotalSalary' => 'Salaire total CHF vide ou invalide à la ligne %s',
 		'ErrorEmptyLabel' => 'Libellé vide à la ligne %s',
 		'ErrorEmptyStartDate' => 'Date de début vide à la ligne %s',
 		'ErrorInvalidStartDate' => 'Date de début (%s) invalide à la ligne %s',
@@ -45,6 +49,9 @@ class LangsMock
 		'ErrorEmptyPaid' => 'Champ Payé vide à la ligne %s',
 		'ErrorInvalidPaid' => 'Payé invalide (doit être oui/non) à la ligne %s',
 		'ErrorEmptyBankAccount' => 'Compte bancaire vide à la ligne %s',
+		'ErrorGroupMultipleEmployees' => 'Le salaire %s référence plusieurs employés (lignes %s)',
+		'ErrorGroupTotalMismatch' => 'Le total du salaire %s diffère selon les lignes %s',
+		'ErrorGroupSumMismatch' => 'Le salaire %s (lignes %s) : la somme des paiements CHF (%s) ne correspond pas au total déclaré (%s)',
 
 		// Lookup errors
 		'ErrorUserNotFound' => 'User not found at row %s',
@@ -68,6 +75,7 @@ class LangsMock
 		'ErrorMovePdf' => 'Failed to move PDF file to: %s',
 		'ErrorIndexPdf' => 'Failed to index PDF file in database',
 		'ErrorPersistRow' => 'Error persisting row %s: %s',
+		'ErrorPersistGroup' => 'Error persisting salary %s: %s',
 
 		// Cleanup errors
 		'ErrorDeleteXlsx' => 'Failed to delete XLSX file',

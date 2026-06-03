@@ -85,10 +85,14 @@ print load_fiche_titre($langs->trans("SalaryImportStep1"), '', 'salaryimport.png
 // Guide format XLSX
 $infoText = '<b>'.$langs->trans("XlsxFormatGuide").'</b><br><br>';
 $infoText .= $langs->trans("XlsxFormatInfo").'<br>';
+$infoText .= '- <b>'.$langs->trans("XlsxColumnSalaryNotation").'</b><br>';
+$infoText .= '- <b>'.$langs->trans("XlsxColumnPaymentRef").'</b><br>';
 $infoText .= '- <b>'.$langs->trans("XlsxColumnFirstname").'</b><br>';
 $infoText .= '- <b>'.$langs->trans("XlsxColumnLastname").'</b><br>';
 $infoText .= '- <b>'.$langs->trans("XlsxColumnPaymentDate").'</b><br>';
-$infoText .= '- <b>'.$langs->trans("XlsxColumnAmount").'</b><br>';
+$infoText .= '- <b>'.$langs->trans("XlsxColumnAmountPaid").'</b><br>';
+$infoText .= '- <b>'.$langs->trans("XlsxColumnAmountChf").'</b><br>';
+$infoText .= '- <b>'.$langs->trans("XlsxColumnTotalSalaryChf").'</b><br>';
 $infoText .= '- <b>'.$langs->trans("XlsxColumnLabel").'</b><br>';
 $infoText .= '- <b>'.$langs->trans("XlsxColumnStartDate").'</b><br>';
 $infoText .= '- <b>'.$langs->trans("XlsxColumnEndDate").'</b><br>';
@@ -96,6 +100,11 @@ $infoText .= '- <b>'.$langs->trans("XlsxColumnPaymentType").'</b><br>';
 $infoText .= '- <b>'.$langs->trans("XlsxColumnPaid").'</b><br>';
 $infoText .= '- <b>'.$langs->trans("XlsxColumnBankAccount").'</b>';
 print info_admin($infoText, 0, 0, 0, 'info');
+
+// Download a ready-to-fill XLSX template
+print '<div class="marginbottomonly">';
+print '<a class="butAction" href="'.dol_buildpath('/custom/salaryimport/salaryimporttemplate.php', 1).'">'.$langs->trans("DownloadXlsxTemplate").'</a>';
+print '</div>';
 
 print '<form method="POST" action="'.dol_buildpath('/custom/salaryimport/salaryimportfile.php', 1).'" enctype="multipart/form-data">';
 print '<input type="hidden" name="token" value="'.newToken().'">';

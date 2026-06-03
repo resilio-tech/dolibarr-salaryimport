@@ -61,10 +61,19 @@ class SalaryImportParser
 	 */
 	protected $columnMapping = array(
 		// French
+		'salaire' => 'Salaire',
+		'réf paiement' => 'Réf paiement',
+		'ref paiement' => 'Réf paiement',
+		'référence paiement' => 'Réf paiement',
 		'prénom' => 'Prénom',
 		'nom' => 'Nom',
 		'date de paiement' => 'Date de paiement',
-		'montant' => 'Montant',
+		'montant payé' => 'Montant payé',
+		'montant' => 'Montant payé', // backward compat (mono-currency files)
+		'montant chf' => 'Montant CHF',
+		'montant payé en chf' => 'Montant CHF',
+		'salaire total chf' => 'Salaire total CHF',
+		'montant salaire total (chf)' => 'Salaire total CHF',
 		'libellé' => 'Libellé',
 		'date de début' => 'Date de début',
 		'date de fin' => 'Date de fin',
@@ -72,12 +81,19 @@ class SalaryImportParser
 		'payé' => 'Payé',
 		'compte bancaire' => 'Compte bancaire',
 		// English
+		'salary' => 'Salaire',
+		'payment ref' => 'Réf paiement',
+		'payment reference' => 'Réf paiement',
 		'first name' => 'Prénom',
 		'firstname' => 'Prénom',
 		'last name' => 'Nom',
 		'lastname' => 'Nom',
 		'payment date' => 'Date de paiement',
-		'amount' => 'Montant',
+		'amount paid' => 'Montant payé',
+		'amount' => 'Montant payé', // backward compat (mono-currency files)
+		'amount chf' => 'Montant CHF',
+		'amount paid chf' => 'Montant CHF',
+		'total salary chf' => 'Salaire total CHF',
 		'label' => 'Libellé',
 		'start date' => 'Date de début',
 		'end date' => 'Date de fin',

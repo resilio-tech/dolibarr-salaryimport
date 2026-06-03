@@ -113,8 +113,11 @@ try {
 	// Display summary table
 	$labels = array(
 		$langs->trans("EmployeeName"),
+		$langs->trans("SalaryNotation"),
+		$langs->trans("PaymentRef"),
 		$langs->trans("PaymentDate"),
-		$langs->trans("Amount"),
+		$langs->trans("AmountPaid"),
+		$langs->trans("AmountChf"),
 		$langs->trans("PaymentType"),
 		$langs->trans("Label"),
 		$langs->trans("StartDate"),
@@ -131,10 +134,16 @@ try {
 	print '</tr>';
 
 	foreach ($t_data as $row) {
+		$nominal = isset($row['amount_nominal']) ? $row['amount_nominal'] : '';
+		$currency = isset($row['account_currency']) ? $row['account_currency'] : '';
+
 		print '<tr class="oddeven">';
 		print '<td>' . htmlspecialchars($row['userName']) . '</td>';
+		print '<td>' . htmlspecialchars($row['salary_notation']) . '</td>';
+		print '<td>' . htmlspecialchars($row['payment_ref']) . '</td>';
 		print '<td>' . htmlspecialchars($row['datep']) . '</td>';
-		print '<td>' . htmlspecialchars($row['amount']) . '</td>';
+		print '<td>' . htmlspecialchars(trim($nominal . ' ' . $currency)) . '</td>';
+		print '<td>' . htmlspecialchars($row['amount_chf']) . '</td>';
 		print '<td>' . htmlspecialchars($row['typepaymentcode']) . '</td>';
 		print '<td>' . htmlspecialchars($row['label']) . '</td>';
 		print '<td>' . htmlspecialchars($row['datesp']) . '</td>';

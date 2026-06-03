@@ -141,7 +141,7 @@ class SalaryImportPersisterTest extends CommonClassTest
 	}
 
 	/**
-	 * Test persistRow requires valid data
+	 * Test persistGroup requires valid data
 	 *
 	 * Note: This test requires a complete test environment with users, bank accounts, etc.
 	 * In a real test suite, you would mock the database or use fixtures.
@@ -152,7 +152,7 @@ class SalaryImportPersisterTest extends CommonClassTest
 	{
 		// This would require proper test fixtures
 		// For now, we just verify the method exists and returns expected type
-		$this->assertTrue(method_exists($this->persister, 'persistRow'));
+		$this->assertTrue(method_exists($this->persister, 'persistGroup'));
 	}
 
 	/**

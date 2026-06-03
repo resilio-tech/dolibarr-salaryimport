@@ -507,4 +507,64 @@ class SalaryImportPdfMatcherTest extends TestCase
 		$matcher = new SalaryImportPdfMatcher();
 		$this->assertStringContainsString('salaryimport', $matcher->getWorkDir());
 	}
+
+	// ========================================
+	// Tests for findPdfByNotation()
+	// ========================================
+
+	public function testFindPdfByNotationMatches()
+	{
+		$pdfs = array(
+			array(
+				'filename' => 'bulletin_2026-05-5_dupont.pdf',
+				'path' => '/path/to/bulletin_2026-05-5_dupont.pdf',
+				'links' => array('bulletin', '2026-05-5', 'dupont')
+			)
+		);
+
+		$result = $this->matcher->findPdfByNotation('2026-05-5', $pdfs);
+		$this->assertEquals('/path/to/bulletin_2026-05-5_dupont.pdf', $result);
+	}
+
+	public function testFindPdfByNotationNoMatch()
+	{
+		$pdfs = array(
+			array(
+				'filename' => 'bulletin_2026-05-5_dupont.pdf',
+				'path' => '/path/to/bulletin_2026-05-5_dupont.pdf',
+				'links' => array('bulletin', '2026-05-5', 'dupont')
+			)
+		);
+
+		$result = $this->matcher->findPdfByNotation('2026-05-9', $pdfs);
+		$this->assertNull($result);
+	}
+
+	public function testFindPdfByNotationBoundarySafe()
+	{
+		// "2026-05-5" must not match "2026-05-50"
+		$pdfs = array(
+			array(
+				'filename' => 'bulletin_2026-05-50_dupont.pdf',
+				'path' => '/path/to/bulletin_2026-05-50_dupont.pdf',
+				'links' => array('bulletin', '2026-05-50', 'dupont')
+			)
+		);
+
+		$result = $this->matcher->findPdfByNotation('2026-05-5', $pdfs);
+		$this->assertNull($result);
+	}
+
+	public function testFindPdfByNotationEmptyNotation()
+	{
+		$pdfs = array(
+			array(
+				'filename' => 'bulletin_2026-05-5_dupont.pdf',
+				'path' => '/path/to/bulletin_2026-05-5_dupont.pdf',
+				'links' => array('bulletin', '2026-05-5', 'dupont')
+			)
+		);
+
+		$this->assertNull($this->matcher->findPdfByNotation('', $pdfs));
+	}
 }

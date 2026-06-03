@@ -304,4 +304,66 @@ class SalaryImportParserTest extends TestCase
 			@unlink($tempFile);
 		}
 	}
+
+	// ========================================
+	// Tests for the new column mapping
+	// ========================================
+
+	public function testParseFileMapsNewColumns()
+	{
+		$tempFile = sys_get_temp_dir().'/test_new_columns_'.uniqid().'.xlsx';
+
+		try {
+			$spreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
+			$sheet = $spreadsheet->getActiveSheet();
+
+			$headers = array('Salaire', 'Réf paiement', 'Montant payé', 'Montant CHF', 'Salaire total CHF');
+			foreach ($headers as $i => $h) {
+				$sheet->setCellValueByColumnAndRow($i + 1, 1, $h);
+			}
+			$values = array('2026-05-2', '2026-05-2-EUR', 2100, 2000, 5000);
+			foreach ($values as $i => $v) {
+				$sheet->setCellValueByColumnAndRow($i + 1, 2, $v);
+			}
+
+			$writer = new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($spreadsheet);
+			$writer->save($tempFile);
+
+			$this->assertEquals(1, $this->parser->parseFile($tempFile));
+			$line = $this->parser->getLine(0);
+
+			$this->assertEquals('2026-05-2', $line['Salaire']);
+			$this->assertEquals('2026-05-2-EUR', $line['Réf paiement']);
+			$this->assertEquals(2100, $line['Montant payé']);
+			$this->assertEquals(2000, $line['Montant CHF']);
+			$this->assertEquals(5000, $line['Salaire total CHF']);
+		} finally {
+			@unlink($tempFile);
+		}
+	}
+
+	public function testParseFileMapsLegacyAmountToAmountPaid()
+	{
+		$tempFile = sys_get_temp_dir().'/test_legacy_amount_'.uniqid().'.xlsx';
+
+		try {
+			$spreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
+			$sheet = $spreadsheet->getActiveSheet();
+
+			// Legacy header "Montant" must map to the canonical "Montant payé" key
+			$sheet->setCellValue('A1', 'Montant');
+			$sheet->setCellValue('A2', 1234);
+
+			$writer = new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($spreadsheet);
+			$writer->save($tempFile);
+
+			$this->assertEquals(1, $this->parser->parseFile($tempFile));
+			$line = $this->parser->getLine(0);
+
+			$this->assertArrayHasKey('Montant payé', $line);
+			$this->assertEquals(1234, $line['Montant payé']);
+		} finally {
+			@unlink($tempFile);
+		}
+	}
 }

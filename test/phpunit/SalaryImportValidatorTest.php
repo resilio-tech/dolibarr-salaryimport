@@ -186,10 +186,14 @@ class SalaryImportValidatorTest extends CommonClassTest
 	public function testValidateRowValid()
 	{
 		$line = array(
+			'Salaire' => '2024-01-1',
+			'Réf paiement' => '2024-01-1-CHF',
 			'Prénom' => 'Jean',
 			'Nom' => 'Dupont',
 			'Date de paiement' => 45292, // 2024-01-01
-			'Montant' => '1500,50',
+			'Montant payé' => '1500,50',
+			'Montant CHF' => '1500,50',
+			'Salaire total CHF' => '1500,50',
 			'Libellé' => 'Salaire janvier',
 			'Date de début' => 45261, // 2023-12-01
 			'Date de fin' => 45291, // 2023-12-31
@@ -201,10 +205,14 @@ class SalaryImportValidatorTest extends CommonClassTest
 		$result = $this->validator->validateRow($line, 2);
 
 		$this->assertNotEmpty($result);
+		$this->assertEquals('2024-01-1', $result['salary_notation']);
+		$this->assertEquals('2024-01-1-CHF', $result['payment_ref']);
 		$this->assertEquals('Jean', $result['firstname']);
 		$this->assertEquals('Dupont', $result['lastname']);
 		$this->assertEquals('2024-01-01', $result['datep']);
-		$this->assertEquals(1500.50, $result['amount']);
+		$this->assertEquals(1500.50, $result['amount_nominal']);
+		$this->assertEquals(1500.50, $result['amount_chf']);
+		$this->assertEquals(1500.50, $result['total_salary_chf']);
 		$this->assertEquals('Salaire janvier', $result['label']);
 		$this->assertEquals('VIR', $result['typepayment_code']);
 		$this->assertEquals(1, $result['paye']);
@@ -302,10 +310,14 @@ class SalaryImportValidatorTest extends CommonClassTest
 	{
 		$lines = array(
 			array(
+				'Salaire' => '2024-01-1',
+				'Réf paiement' => '2024-01-1-CHF',
 				'Prénom' => 'Jean',
 				'Nom' => 'Dupont',
 				'Date de paiement' => 45292,
-				'Montant' => '1500',
+				'Montant payé' => '1500',
+				'Montant CHF' => '1500',
+				'Salaire total CHF' => '1500',
 				'Libellé' => 'Salaire janvier',
 				'Date de début' => 45261,
 				'Date de fin' => 45291,
@@ -314,10 +326,14 @@ class SalaryImportValidatorTest extends CommonClassTest
 				'Compte bancaire' => 'BNP'
 			),
 			array(
+				'Salaire' => '2024-01-2',
+				'Réf paiement' => '2024-01-2-CHF',
 				'Prénom' => 'Marie',
 				'Nom' => 'Martin',
 				'Date de paiement' => 45292,
-				'Montant' => '2000',
+				'Montant payé' => '2000',
+				'Montant CHF' => '2000',
+				'Salaire total CHF' => '2000',
 				'Libellé' => 'Salaire janvier',
 				'Date de début' => 45261,
 				'Date de fin' => 45291,
@@ -342,9 +358,12 @@ class SalaryImportValidatorTest extends CommonClassTest
 	{
 		$fields = $this->validator->getRequiredFields();
 
+		$this->assertContains('Salaire', $fields);
+		$this->assertContains('Réf paiement', $fields);
 		$this->assertContains('Prénom', $fields);
 		$this->assertContains('Nom', $fields);
 		$this->assertContains('Date de paiement', $fields);
-		$this->assertContains('Montant', $fields);
+		$this->assertContains('Montant payé', $fields);
+		$this->assertContains('Salaire total CHF', $fields);
 	}
 }

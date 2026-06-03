@@ -150,7 +150,7 @@ class SalaryImportUserLookup
 	 * Find bank account by ref or label
 	 *
 	 * @param string $refOrLabel Bank account ref or label
-	 * @return array|false Array with 'rowid', 'ref', and 'label' on success, false if not found
+	 * @return array|false Array with 'rowid', 'ref', 'label' and 'currency_code' on success, false if not found
 	 */
 	public function findBankAccount($refOrLabel)
 	{
@@ -161,7 +161,7 @@ class SalaryImportUserLookup
 			return $this->bankAccountCache[$cacheKey];
 		}
 
-		$sql = "SELECT rowid, ref, label FROM ".MAIN_DB_PREFIX."bank_account";
+		$sql = "SELECT rowid, ref, label, currency_code FROM ".MAIN_DB_PREFIX."bank_account";
 		$sql .= " WHERE ref = '".$this->db->escape($refOrLabel)."'";
 		$sql .= " OR label = '".$this->db->escape($refOrLabel)."'";
 
@@ -181,7 +181,8 @@ class SalaryImportUserLookup
 		$accountData = array(
 			'rowid' => $obj->rowid,
 			'ref' => $obj->ref,
-			'label' => $obj->label
+			'label' => $obj->label,
+			'currency_code' => $obj->currency_code
 		);
 
 		$this->bankAccountCache[$cacheKey] = $accountData;
@@ -232,6 +233,7 @@ class SalaryImportUserLookup
 			} else {
 				$enriched['account'] = $account['rowid'];
 				$enriched['account_label'] = $account['label'];
+				$enriched['account_currency'] = $account['currency_code'];
 			}
 		}
 

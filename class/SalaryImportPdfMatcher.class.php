@@ -299,6 +299,34 @@ class SalaryImportPdfMatcher
 	}
 
 	/**
+	 * Find a matching PDF for a given salary notation.
+	 *
+	 * The payslip filename is expected to contain the notation (e.g. "2026-05-5") somewhere in
+	 * its name. Matching is done on the normalized filename with dash boundaries so that
+	 * "2026-05-5" does not match "2026-05-50".
+	 *
+	 * @param string $notation Salary notation (e.g. "2026-05-5")
+	 * @param array  $pdfs     Array of PDF info from extractFromZip() or scanDirectoryForPdfs()
+	 * @return string|null Path to matching PDF or null if not found
+	 */
+	public function findPdfByNotation($notation, $pdfs)
+	{
+		$normalizedNotation = $this->normalizeString($notation);
+		if ($normalizedNotation === '') {
+			return null;
+		}
+
+		foreach ($pdfs as $pdf) {
+			$normalizedName = $this->normalizeString(pathinfo($pdf['filename'], PATHINFO_FILENAME));
+			if (strpos('-'.$normalizedName.'-', '-'.$normalizedNotation.'-') !== false) {
+				return $pdf['path'];
+			}
+		}
+
+		return null;
+	}
+
+	/**
 	 * Clean up extracted files and directories
 	 *
 	 * @param string $folderName Folder name to clean up (relative to workDir)

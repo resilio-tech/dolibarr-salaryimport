@@ -268,6 +268,13 @@ class SalaryImportService
 			return -3;
 		}
 
+		// Validate cross-row consistency per salary notation (one employee, identical total,
+		// sum of CHF payments == total).
+		if (!$this->validator->validateGroups($validatedRows)) {
+			$this->errors = array_merge($this->errors, $this->validator->errors);
+			return -3;
+		}
+
 		// Enrich with database lookups
 		$enrichedRows = $this->userLookup->enrichAll($validatedRows);
 
@@ -276,13 +283,20 @@ class SalaryImportService
 			return -4;
 		}
 
-		// Match PDFs to users
+		// Match PDFs: first by salary notation (the payslip filename contains it),
+		// then fall back to the firstname/lastname match.
 		foreach ($enrichedRows as $index => &$row) {
-			$pdfPath = $this->pdfMatcher->findPdfForUser(
-				$row['firstname'],
-				$row['lastname'],
-				$this->pdfs
-			);
+			$pdfPath = null;
+			if (!empty($row['salary_notation'])) {
+				$pdfPath = $this->pdfMatcher->findPdfByNotation($row['salary_notation'], $this->pdfs);
+			}
+			if (empty($pdfPath)) {
+				$pdfPath = $this->pdfMatcher->findPdfForUser(
+					$row['firstname'],
+					$row['lastname'],
+					$this->pdfs
+				);
+			}
 			$row['pdf'] = $pdfPath ? $pdfPath : '';
 
 			if (!empty($pdfPath)) {
@@ -404,10 +418,15 @@ class SalaryImportService
 
 		foreach ($this->previewData as $index => $row) {
 			$serialized[$index] = array(
+				'salary_notation' => $row['salary_notation'],
+				'payment_ref' => $row['payment_ref'],
 				'userId' => $row['userId'],
 				'userName' => $row['userName'],
 				'datep' => $row['datep'],
-				'amount' => $row['amount'],
+				'amount_nominal' => $row['amount_nominal'],
+				'amount_chf' => $row['amount_chf'],
+				'total_salary_chf' => $row['total_salary_chf'],
+				'account_currency' => isset($row['account_currency']) ? $row['account_currency'] : '',
 				'typepayment' => $row['typepayment'],
 				'typepaymentcode' => $row['typepaymentcode'],
 				'label' => $row['label'],

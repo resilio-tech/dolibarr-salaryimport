@@ -180,34 +180,73 @@ class SalaryImportValidatorTest extends TestCase
 
 	public function testValidateRowValid()
 	{
-		$line = array(
-			'Prénom' => 'Jean',
-			'Nom' => 'Dupont',
-			'Date de paiement' => 45322, // 2024-01-31
-			'Montant' => '1500,50',
-			'Libellé' => 'Salaire janvier',
-			'Date de début' => 45292, // 2024-01-01
-			'Date de fin' => 45322, // 2024-01-31
-			'Type de paiement' => 'VIR',
-			'Payé' => 'oui',
-			'Compte bancaire' => 'BNP'
-		);
+		$line = $this->getValidLine();
 
 		$result = $this->validator->validateRow($line, 2);
 
 		$this->assertNotEmpty($result);
+		$this->assertEquals('2024-01-1', $result['salary_notation']);
+		$this->assertEquals('2024-01-1-CHF', $result['payment_ref']);
 		$this->assertEquals('Jean', $result['firstname']);
 		$this->assertEquals('Dupont', $result['lastname']);
 		$this->assertEquals('2024-01-31', $result['datep']);
 		$this->assertEquals('31/01/2024', $result['datep_display']);
-		$this->assertEquals(1500.50, $result['amount']);
+		$this->assertEquals(1500.50, $result['amount_nominal']);
+		$this->assertEquals(1500.50, $result['amount_chf']);
+		$this->assertEquals(1500.50, $result['total_salary_chf']);
 		$this->assertEquals('Salaire janvier', $result['label']);
 		$this->assertEquals('2024-01-01', $result['datesp']);
 		$this->assertEquals('2024-01-31', $result['dateep']);
 		$this->assertEquals('VIR', $result['typepayment_code']);
 		$this->assertEquals(1, $result['paye']);
 		$this->assertEquals('BNP', $result['account_ref']);
+		$this->assertEquals(2, $result['row_num']);
 		$this->assertTrue($this->validator->isValid());
+	}
+
+	public function testValidateRowAmountChfDefaultsToNominal()
+	{
+		$line = $this->getValidLine();
+		unset($line['Montant CHF']); // optional column omitted
+
+		$result = $this->validator->validateRow($line, 2);
+
+		$this->assertNotEmpty($result);
+		$this->assertEquals(1500.50, $result['amount_nominal']);
+		$this->assertEquals(1500.50, $result['amount_chf']); // defaulted to nominal
+	}
+
+	public function testValidateRowMissingSalaryNotation()
+	{
+		$line = $this->getValidLine();
+		$line['Salaire'] = '';
+
+		$result = $this->validator->validateRow($line, 2);
+
+		$this->assertEmpty($result);
+		$this->assertContains('Notation de salaire vide à la ligne 2', $this->validator->errors);
+	}
+
+	public function testValidateRowMissingPaymentRef()
+	{
+		$line = $this->getValidLine();
+		$line['Réf paiement'] = '';
+
+		$result = $this->validator->validateRow($line, 2);
+
+		$this->assertEmpty($result);
+		$this->assertContains('Référence de paiement vide à la ligne 2', $this->validator->errors);
+	}
+
+	public function testValidateRowMissingTotalSalary()
+	{
+		$line = $this->getValidLine();
+		$line['Salaire total CHF'] = '';
+
+		$result = $this->validator->validateRow($line, 2);
+
+		$this->assertEmpty($result);
+		$this->assertContains('Salaire total CHF vide ou invalide à la ligne 2', $this->validator->errors);
 	}
 
 	public function testValidateRowMissingFirstname()
@@ -266,24 +305,24 @@ class SalaryImportValidatorTest extends TestCase
 	public function testValidateRowMissingAmount()
 	{
 		$line = $this->getValidLine();
-		$line['Montant'] = '';
+		$line['Montant payé'] = '';
 
 		$result = $this->validator->validateRow($line, 5);
 
 		$this->assertEmpty($result);
-		$this->assertContains('Montant vide ou invalide à la ligne 5', $this->validator->errors);
+		$this->assertContains('Montant payé vide ou invalide à la ligne 5', $this->validator->errors);
 	}
 
 	public function testValidateRowZeroAmount()
 	{
 		$line = $this->getValidLine();
-		$line['Montant'] = '0';
+		$line['Montant payé'] = '0';
 
 		$result = $this->validator->validateRow($line, 2);
 
 		// Zero amount should be valid
 		$this->assertNotEmpty($result);
-		$this->assertEquals(0.0, $result['amount']);
+		$this->assertEquals(0.0, $result['amount_nominal']);
 	}
 
 	public function testValidateRowMissingLabel()
@@ -361,6 +400,100 @@ class SalaryImportValidatorTest extends TestCase
 	}
 
 	// ========================================
+	// Tests for validateGroups()
+	// ========================================
+
+	/**
+	 * Build a payment line of a group (helper for group tests).
+	 */
+	private function getGroupLine($notation, $ref, $firstname, $lastname, $nominal, $chf, $total): array
+	{
+		$line = $this->getValidLine();
+		$line['Salaire'] = $notation;
+		$line['Réf paiement'] = $ref;
+		$line['Prénom'] = $firstname;
+		$line['Nom'] = $lastname;
+		$line['Montant payé'] = $nominal;
+		$line['Montant CHF'] = $chf;
+		$line['Salaire total CHF'] = $total;
+		return $line;
+	}
+
+	public function testValidateGroupsValidMultiPayment()
+	{
+		$lines = array(
+			$this->getGroupLine('2026-05-2', '2026-05-2-EUR', 'Marie', 'Martin', '2100', '2000', '5000'),
+			$this->getGroupLine('2026-05-2', '2026-05-2-CHF', 'Marie', 'Martin', '3000', '3000', '5000'),
+		);
+		$validated = $this->validator->validateAll($lines);
+
+		$this->assertTrue($this->validator->validateGroups($validated));
+		$this->assertTrue($this->validator->isValid());
+	}
+
+	public function testValidateGroupsSumMismatch()
+	{
+		$lines = array(
+			$this->getGroupLine('2026-05-2', '2026-05-2-EUR', 'Marie', 'Martin', '2100', '2000', '5000'),
+			$this->getGroupLine('2026-05-2', '2026-05-2-CHF', 'Marie', 'Martin', '2500', '2500', '5000'),
+		);
+		$validated = $this->validator->validateAll($lines);
+
+		$this->assertFalse($this->validator->validateGroups($validated));
+		$hasError = false;
+		foreach ($this->validator->errors as $error) {
+			if (strpos($error, 'somme des paiements CHF') !== false) {
+				$hasError = true;
+			}
+		}
+		$this->assertTrue($hasError);
+	}
+
+	public function testValidateGroupsMultipleEmployees()
+	{
+		$lines = array(
+			$this->getGroupLine('2026-05-2', '2026-05-2-EUR', 'Marie', 'Martin', '2000', '2000', '5000'),
+			$this->getGroupLine('2026-05-2', '2026-05-2-CHF', 'Jean', 'Dupont', '3000', '3000', '5000'),
+		);
+		$validated = $this->validator->validateAll($lines);
+
+		$this->assertFalse($this->validator->validateGroups($validated));
+		$hasError = false;
+		foreach ($this->validator->errors as $error) {
+			if (strpos($error, 'plusieurs employés') !== false) {
+				$hasError = true;
+			}
+		}
+		$this->assertTrue($hasError);
+	}
+
+	public function testValidateGroupsTotalMismatch()
+	{
+		$lines = array(
+			$this->getGroupLine('2026-05-2', '2026-05-2-EUR', 'Marie', 'Martin', '2000', '2000', '5000'),
+			$this->getGroupLine('2026-05-2', '2026-05-2-CHF', 'Marie', 'Martin', '3000', '3000', '4000'),
+		);
+		$validated = $this->validator->validateAll($lines);
+
+		$this->assertFalse($this->validator->validateGroups($validated));
+		$hasError = false;
+		foreach ($this->validator->errors as $error) {
+			if (strpos($error, 'total du salaire') !== false) {
+				$hasError = true;
+			}
+		}
+		$this->assertTrue($hasError);
+	}
+
+	public function testValidateGroupsMonoPaymentIsAGroupOfOne()
+	{
+		$lines = array($this->getGroupLine('2026-05-1', '2026-05-1-CHF', 'Jean', 'Dupont', '4500', '4500', '4500'));
+		$validated = $this->validator->validateAll($lines);
+
+		$this->assertTrue($this->validator->validateGroups($validated));
+	}
+
+	// ========================================
 	// Tests for getRequiredFields()
 	// ========================================
 
@@ -369,10 +502,13 @@ class SalaryImportValidatorTest extends TestCase
 		$fields = $this->validator->getRequiredFields();
 
 		$this->assertIsArray($fields);
+		$this->assertContains('Salaire', $fields);
+		$this->assertContains('Réf paiement', $fields);
 		$this->assertContains('Prénom', $fields);
 		$this->assertContains('Nom', $fields);
 		$this->assertContains('Date de paiement', $fields);
-		$this->assertContains('Montant', $fields);
+		$this->assertContains('Montant payé', $fields);
+		$this->assertContains('Salaire total CHF', $fields);
 		$this->assertContains('Libellé', $fields);
 		$this->assertContains('Date de début', $fields);
 		$this->assertContains('Date de fin', $fields);
@@ -406,10 +542,14 @@ class SalaryImportValidatorTest extends TestCase
 	private function getValidLine(): array
 	{
 		return array(
+			'Salaire' => '2024-01-1',
+			'Réf paiement' => '2024-01-1-CHF',
 			'Prénom' => 'Jean',
 			'Nom' => 'Dupont',
 			'Date de paiement' => 45322, // 2024-01-31
-			'Montant' => '1500,50',
+			'Montant payé' => '1500,50',
+			'Montant CHF' => '1500,50',
+			'Salaire total CHF' => '1500,50',
 			'Libellé' => 'Salaire janvier',
 			'Date de début' => 45292, // 2024-01-01
 			'Date de fin' => 45322, // 2024-01-31

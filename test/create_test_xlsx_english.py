@@ -9,28 +9,32 @@ from openpyxl import Workbook
 wb = Workbook()
 ws = wb.active
 
-# English headers
+# English headers. One row = one payment, grouped by the "Salary" notation.
 headers = [
+    'Salary',
+    'Payment ref',
     'First name',
     'Last name',
     'Payment date',
-    'Amount',
+    'Payment type',
+    'Bank account',
+    'Amount paid',
+    'Amount CHF',
+    'Total salary CHF',
     'Label',
     'Start date',
     'End date',
-    'Payment type',
-    'Paid',
-    'Bank account'
+    'Paid'
 ]
 
 # Write headers
 for col, header in enumerate(headers, 1):
     ws.cell(row=1, column=col, value=header)
 
-# Test data
+# Test data - mono-payment salaries on a CHF account (paid == CHF == total)
 data = [
-    ['John', 'Doe', '2026-01-15', 4500.00, 'Salary January 2026', '2026-01-01', '2026-01-31', 'VIR', 'yes', 'POSTE_CH'],
-    ['Jane', 'Smith', '2026-01-15', 4200.00, 'Salary January 2026', '2026-01-01', '2026-01-31', 'VIR', 'yes', 'POSTE_CH'],
+    ['2026-01-1', '2026-01-1-CHF', 'John', 'Doe', '2026-01-15', 'VIR', 'POSTE_CH', 4500.00, 4500.00, 4500.00, 'Salary January 2026', '2026-01-01', '2026-01-31', 'yes'],
+    ['2026-01-2', '2026-01-2-CHF', 'Jane', 'Smith', '2026-01-15', 'VIR', 'POSTE_CH', 4200.00, 4200.00, 4200.00, 'Salary January 2026', '2026-01-01', '2026-01-31', 'yes'],
 ]
 
 # Write data
