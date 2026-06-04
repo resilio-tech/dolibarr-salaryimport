@@ -455,7 +455,15 @@ class SalaryImportValidator
 			}
 			$total = isset($rows[0]['total_salary_chf']) ? $rows[0]['total_salary_chf'] : null;
 			if ($total !== null && round($sumChf, 2) !== round((float) $total, 2)) {
-				$this->errors[] = $langs->trans('ErrorGroupSumMismatch', $notation, $rowList, $sumChf, $total);
+				// Format both amounts to 2 decimals so the user sees cent-accurate values
+				// (raw floats could surface noise like 4999.9999999997).
+				$this->errors[] = $langs->trans(
+					'ErrorGroupSumMismatch',
+					$notation,
+					$rowList,
+					number_format($sumChf, 2, '.', ''),
+					number_format((float) $total, 2, '.', '')
+				);
 				$valid = false;
 			}
 		}

@@ -404,6 +404,10 @@ class SalaryImportPersister
 			}
 		}
 
+		// All inserts of a group (salary + N bank/payment/url rows) are wrapped in a single
+		// transaction so a mid-loop failure never leaves a salary half-persisted.
+		$this->db->begin();
+
 		// Sort the group by payment reference so the salary-level fields taken from the first row
 		// (account, payment type) do not depend on the XLSX row order. Dates are already validated
 		// identical across the group by SalaryImportValidator::validateGroups().
@@ -432,6 +436,7 @@ class SalaryImportPersister
 		);
 
 		if ($salaryId < 0) {
+			$this->db->rollback();
 			return $result;
 		}
 
@@ -453,6 +458,7 @@ class SalaryImportPersister
 			);
 
 			if ($bankId < 0) {
+				$this->db->rollback();
 				return $result;
 			}
 
@@ -474,6 +480,7 @@ class SalaryImportPersister
 			);
 
 			if ($paymentId < 0) {
+				$this->db->rollback();
 				return $result;
 			}
 
@@ -487,6 +494,7 @@ class SalaryImportPersister
 			);
 
 			if ($urlResult < 0) {
+				$this->db->rollback();
 				return $result;
 			}
 
@@ -499,6 +507,7 @@ class SalaryImportPersister
 			);
 
 			if ($urlResult < 0) {
+				$this->db->rollback();
 				return $result;
 			}
 
@@ -509,6 +518,10 @@ class SalaryImportPersister
 				'bankId' => $bankId
 			);
 		}
+
+		// All DB inserts of the group succeeded: commit before the (non-transactional, non-blocking)
+		// PDF filesystem move below.
+		$this->db->commit();
 
 		// Move PDF once per salary (first line of the group that carries one)
 		$pdfPath = '';

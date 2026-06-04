@@ -147,7 +147,9 @@ class modSalaryImport extends DolibarrModules
 
 		// Prerequisites
 		$this->phpmin = array(7, 0); // Minimum version of PHP required by module
-		$this->need_dolibarr_version = array(11, -3); // Minimum version of Dolibarr required by module
+		// Dolibarr 15.0 is the minimum: the import writes llx_bank.amount_main_currency, a column
+		// introduced in 15.0.0 (migration 14.0.0-15.0.0.sql). On older versions the INSERT would fail.
+		$this->need_dolibarr_version = array(15, 0); // Minimum version of Dolibarr required by module
 		$this->need_javascript_ajax = 0;
 
 		// Messages at activation
