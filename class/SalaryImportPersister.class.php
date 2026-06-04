@@ -197,21 +197,24 @@ class SalaryImportPersister
 	/**
 	 * Insert bank transaction record
 	 *
-	 * @param string $datep           Transaction date (Y-m-d)
-	 * @param float  $amount          Amount (will be negated for salary payment)
-	 * @param int    $accountId       Bank account ID
-	 * @param string $typepaymentcode Payment type code
+	 * @param string $datep              Transaction date (Y-m-d)
+	 * @param float  $amount             Amount in the account currency (will be negated for salary payment)
+	 * @param int    $accountId          Bank account ID
+	 * @param string $typepaymentcode    Payment type code
+	 * @param float  $amountMainCurrency Amount in the company currency, or null when the account is already
+	 *                                   in the company currency (column left NULL)
 	 * @return int Bank transaction ID on success, <0 on error
 	 */
-	public function insertBankTransaction($datep, $amount, $accountId, $typepaymentcode)
+	public function insertBankTransaction($datep, $amount, $accountId, $typepaymentcode, $amountMainCurrency = null)
 	{
 		$sql = "INSERT INTO ".MAIN_DB_PREFIX."bank";
-		$sql .= " (datec, datev, dateo, amount, label, fk_account, fk_user_author, fk_type)";
+		$sql .= " (datec, datev, dateo, amount, amount_main_currency, label, fk_account, fk_user_author, fk_type)";
 		$sql .= " VALUES (";
 		$sql .= "'".$this->db->escape($datep)."',";
 		$sql .= "'".$this->db->escape($datep)."',";
 		$sql .= "'".$this->db->escape($datep)."',";
 		$sql .= floatval(-$amount).","; // Negative for expense
+		$sql .= ($amountMainCurrency === null ? "NULL" : floatval(-$amountMainCurrency)).","; // Negative, NULL when same currency
 		$sql .= "'(SalaryPayment)',";
 		$sql .= intval($accountId).",";
 		$sql .= intval($this->user->id).",";
@@ -273,16 +276,18 @@ class SalaryImportPersister
 	 * @param int    $userId      User ID
 	 * @param int    $bankId      Bank transaction ID
 	 * @param int    $salaryId    Salary ID
+	 * @param string $numPayment  Payment notation displayed as the reference (payment_salary.num_payment)
 	 * @return int Payment salary ID on success, <0 on error
 	 */
-	public function insertPaymentSalary($ref, $datep, $amount, $typepayment, $label, $datesp, $dateep, $userId, $bankId, $salaryId)
+	public function insertPaymentSalary($ref, $datep, $amount, $typepayment, $label, $datesp, $dateep, $userId, $bankId, $salaryId, $numPayment = '')
 	{
 		$entity = $this->conf->entity;
 
 		$sql = "INSERT INTO ".MAIN_DB_PREFIX."payment_salary";
-		$sql .= " (ref, datep, amount, fk_typepayment, label, datesp, dateep, fk_user, fk_bank, fk_salary, fk_user_author, entity)";
+		$sql .= " (ref, num_payment, datep, amount, fk_typepayment, label, datesp, dateep, fk_user, fk_bank, fk_salary, fk_user_author, entity)";
 		$sql .= " VALUES (";
 		$sql .= "'".$this->db->escape($ref)."',";
+		$sql .= "'".$this->db->escape($numPayment)."',";
 		$sql .= "'".$this->db->escape($datep)."',";
 		$sql .= floatval($amount).",";
 		$sql .= intval($typepayment).",";
@@ -378,12 +383,16 @@ class SalaryImportPersister
 	}
 
 	/**
-	 * Persist a single row of enriched salary data
+	 * Persist one salary group (all rows sharing the same notation).
 	 *
-	 * @param array $data Enriched data from SalaryImportUserLookup
-	 * @return array Result with 'salaryId', 'paymentId', 'bankId' on success, or empty with errors
+	 * Creates a single salary (amount = total CHF, label = notation), then for each line of the
+	 * group a bank transaction + a payment_salary + the bank links. The PDF, if any, is moved once.
+	 *
+	 * @param string $notation Salary notation shared by every row (e.g. "2026-05-5")
+	 * @param array  $rows     Enriched rows of the group from SalaryImportUserLookup
+	 * @return array Result with 'salaryId', 'salaryRef', 'notation' and 'payments', or empty on error
 	 */
-	public function persistRow($data)
+	public function persistGroup($notation, $rows)
 	{
 		$result = array();
 		$this->errors = array();
@@ -395,93 +404,144 @@ class SalaryImportPersister
 			}
 		}
 
-		// Generate references
-		$salaryRef = $this->getNextSalaryRef();
-		$paymentRef = $this->getNextPaymentRef();
+		// All inserts of a group (salary + N bank/payment/url rows) are wrapped in a single
+		// transaction so a mid-loop failure never leaves a salary half-persisted.
+		$this->db->begin();
 
-		// Insert salary
+		// Sort the group by payment reference so the salary-level fields taken from the first row
+		// (account, payment type) do not depend on the XLSX row order. Dates are already validated
+		// identical across the group by SalaryImportValidator::validateGroups().
+		usort($rows, function ($a, $b) {
+			$refA = isset($a['payment_ref']) ? (string) $a['payment_ref'] : '';
+			$refB = isset($b['payment_ref']) ? (string) $b['payment_ref'] : '';
+			return strcmp($refA, $refB);
+		});
+		$first = reset($rows);
+
+		// One salary per notation: amount = total in company currency, label = notation.
+		// Date/period are the same on every row; account/type come from the first row of the
+		// deterministically sorted group (they may legitimately differ between payments).
+		$salaryRef = $this->getNextSalaryRef();
 		$salaryId = $this->insertSalary(
 			$salaryRef,
-			$data['datep'],
-			$data['amount'],
-			$data['typepayment'],
-			$data['label'],
-			$data['datesp'],
-			$data['dateep'],
-			$data['paye'],
-			$data['userId'],
-			$data['account']
+			$first['datep'],
+			$first['total_salary_chf'],
+			$first['typepayment'],
+			$notation,
+			$first['datesp'],
+			$first['dateep'],
+			$first['paye'],
+			$first['userId'],
+			$first['account']
 		);
 
 		if ($salaryId < 0) {
+			$this->db->rollback();
 			return $result;
 		}
 
-		// Insert bank transaction
-		$bankId = $this->insertBankTransaction(
-			$data['datep'],
-			$data['amount'],
-			$data['account'],
-			$data['typepaymentcode']
-		);
+		$companyCurrency = $this->conf->currency;
+		$payments = array();
 
-		if ($bankId < 0) {
-			return $result;
+		// One bank transaction + payment_salary + links per line of the group
+		foreach ($rows as $row) {
+			// amount_main_currency only when the account currency differs from the company currency.
+			// An empty account currency (NULL/'' in llx_bank_account.currency_code) is unknown, so we
+			// assume the company currency and leave amount_main_currency NULL.
+			$accountCurrency = !empty($row['account_currency']) ? $row['account_currency'] : $companyCurrency;
+			$amountMainCurrency = ($accountCurrency !== $companyCurrency) ? $row['amount_chf'] : null;
+
+			$bankId = $this->insertBankTransaction(
+				$row['datep'],
+				$row['amount_nominal'],
+				$row['account'],
+				$row['typepaymentcode'],
+				$amountMainCurrency
+			);
+
+			if ($bankId < 0) {
+				$this->db->rollback();
+				return $result;
+			}
+
+			// Insert payment salary BEFORE bank_url (we need paymentId for the link).
+			// amount = CHF (company currency); num_payment = the payment notation.
+			$paymentRef = $this->getNextPaymentRef();
+			$paymentId = $this->insertPaymentSalary(
+				$paymentRef,
+				$row['datep'],
+				$row['amount_chf'],
+				$row['typepayment'],
+				$row['label'],
+				$row['datesp'],
+				$row['dateep'],
+				$row['userId'],
+				$bankId,
+				$salaryId,
+				$row['payment_ref']
+			);
+
+			if ($paymentId < 0) {
+				$this->db->rollback();
+				return $result;
+			}
+
+			// Insert bank URLs - link to payment_salary (not salary)
+			$urlResult = $this->insertBankUrl(
+				$bankId,
+				$paymentId,
+				'/salaries/payment_salary/card.php?id=',
+				'(paiement)',
+				'payment_salary'
+			);
+
+			if ($urlResult < 0) {
+				$this->db->rollback();
+				return $result;
+			}
+
+			$urlResult = $this->insertBankUrl(
+				$bankId,
+				$row['userId'],
+				'/user/card.php?id=',
+				$row['userName'],
+				'user'
+			);
+
+			if ($urlResult < 0) {
+				$this->db->rollback();
+				return $result;
+			}
+
+			$payments[] = array(
+				'paymentId' => $paymentId,
+				'paymentRef' => $paymentRef,
+				'num_payment' => $row['payment_ref'],
+				'bankId' => $bankId
+			);
 		}
 
-		// Insert payment salary BEFORE bank_url (we need paymentId for the link)
-		$paymentId = $this->insertPaymentSalary(
-			$paymentRef,
-			$data['datep'],
-			$data['amount'],
-			$data['typepayment'],
-			$data['label'],
-			$data['datesp'],
-			$data['dateep'],
-			$data['userId'],
-			$bankId,
-			$salaryId
-		);
+		// All DB inserts of the group succeeded: commit before the (non-transactional, non-blocking)
+		// PDF filesystem move below.
+		$this->db->commit();
 
-		if ($paymentId < 0) {
-			return $result;
+		// Move PDF once per salary (first line of the group that carries one)
+		$pdfPath = '';
+		foreach ($rows as $row) {
+			if (!empty($row['pdf'])) {
+				$pdfPath = $row['pdf'];
+				break;
+			}
 		}
-
-		// Insert bank URLs - link to payment_salary (not salary)
-		$urlResult = $this->insertBankUrl(
-			$bankId,
-			$paymentId,
-			'/salaries/payment_salary/card.php?id=',
-			'(paiement)',
-			'payment_salary'
-		);
-
-		if ($urlResult < 0) {
-			return $result;
-		}
-
-		$urlResult = $this->insertBankUrl(
-			$bankId,
-			$data['userId'],
-			'/user/card.php?id=',
-			$data['userName'],
-			'user'
-		);
-
-		if ($urlResult < 0) {
-			return $result;
-		}
-
-		// Move PDF if present
-		if (!empty($data['pdf'])) {
-			$pdfResult = $this->movePdfToSalary($data['pdf'], $salaryId);
+		if (!empty($pdfPath)) {
+			$pdfResult = $this->movePdfToSalary($pdfPath, $salaryId);
 			if ($pdfResult < 0) {
 				// Collect as warning with context (employee name, salary ID)
-				$context = $data['userName'].' (Salary #'.$salaryId.')';
+				$context = $first['userName'].' (Salary #'.$salaryId.')';
 				foreach ($this->errors as $error) {
 					$this->warnings[] = $context.': '.$error;
 				}
-				dol_syslog("SalaryImportPersister::persistRow - Failed to move PDF for ".$context.": ".implode(', ', $this->errors), LOG_ERR);
+				dol_syslog("SalaryImportPersister::persistGroup - Failed to move PDF for ".$context.": ".implode(', ', $this->errors), LOG_ERR);
 				$this->errors = array(); // Clear errors so they don't block
 			}
 		}
@@ -489,41 +549,58 @@ class SalaryImportPersister
 		$result = array(
 			'salaryId' => $salaryId,
 			'salaryRef' => $salaryRef,
-			'paymentId' => $paymentId,
-			'paymentRef' => $paymentRef,
-			'bankId' => $bankId
+			'notation' => $notation,
+			'payments' => $payments
 		);
 
 		return $result;
 	}
 
 	/**
-	 * Persist all enriched salary data rows
+	 * Persist all enriched salary data rows, grouped by notation.
+	 *
+	 * Rows sharing the same notation form a single salary paid in N payments.
 	 *
 	 * @param array $enrichedRows Array of enriched data rows from SalaryImportUserLookup
-	 * @return array Array of results for each row
+	 * @return array Array of results keyed by notation
 	 */
 	public function persistAll($enrichedRows)
 	{
 		global $langs;
 		$this->errors = array();
 		$results = array();
+		$groupErrors = array();
 
 		// Initialize counters once for all rows
 		if ($this->initCounters() < 0) {
 			return $results;
 		}
 
+		// Group rows by salary notation (preserve first-seen order).
+		// persistAll receives user-submitted confirm data: a missing notation means malformed or
+		// tampered input, so we fail fast instead of silently creating a "row_N" labelled salary.
+		$groups = array();
 		foreach ($enrichedRows as $index => $data) {
-			$rowNum = $index + 2; // +2 because row 1 is headers and arrays are 0-indexed
-			$result = $this->persistRow($data);
+			if (empty($data['salary_notation'])) {
+				$rowLabel = !empty($data['userName']) ? $data['userName'] : ('#'.($index + 1));
+				$this->errors[] = $langs->trans('ErrorMissingSalaryNotation', $rowLabel);
+				return $results; // empty: abort the whole import
+			}
+			$notation = $data['salary_notation'];
+			$groups[$notation][] = $data;
+		}
+
+		foreach ($groups as $notation => $rows) {
+			$result = $this->persistGroup($notation, $rows);
 
 			if (empty($result)) {
-				$this->errors[] = $langs->trans('ErrorPersistRow', $rowNum, implode(', ', $this->errors));
+				$groupErrors[] = $langs->trans('ErrorPersistGroup', $notation, implode(', ', $this->errors));
 			} else {
-				$results[$index] = $result;
+				$results[$notation] = $result;
 			}
 		}
+
+		$this->errors = $groupErrors;
 
 		return $results;
 	}

@@ -37,10 +37,13 @@ class SalaryImportValidator
 	 * @var array Required fields
 	 */
 	protected $requiredFields = array(
+		'Salaire',
+		'Réf paiement',
 		'Prénom',
 		'Nom',
 		'Date de paiement',
-		'Montant',
+		'Montant payé',
+		'Salaire total CHF',
 		'Libellé',
 		'Date de début',
 		'Date de fin',
@@ -190,6 +193,25 @@ class SalaryImportValidator
 		$validated = array();
 		$rowErrors = array();
 
+		// Keep the row number for group-level error messages
+		$validated['row_num'] = $rowNum;
+
+		// Validate salary notation (grouping key, e.g. "2026-05-5")
+		$notation = isset($line['Salaire']) ? trim((string) $line['Salaire']) : '';
+		if ($notation === '') {
+			$rowErrors[] = $langs->trans('ErrorEmptySalaryNotation', $rowNum);
+		} else {
+			$validated['salary_notation'] = $notation;
+		}
+
+		// Validate payment reference (e.g. "2026-05-5-EUR")
+		$paymentRef = isset($line['Réf paiement']) ? trim((string) $line['Réf paiement']) : '';
+		if ($paymentRef === '') {
+			$rowErrors[] = $langs->trans('ErrorEmptyPaymentRef', $rowNum);
+		} else {
+			$validated['payment_ref'] = $paymentRef;
+		}
+
 		// Validate firstname and lastname
 		$firstname = isset($line['Prénom']) ? trim($line['Prénom']) : '';
 		$lastname = isset($line['Nom']) ? trim($line['Nom']) : '';
@@ -215,13 +237,38 @@ class SalaryImportValidator
 			}
 		}
 
-		// Validate amount
-		$amount = isset($line['Montant']) ? $line['Montant'] : null;
-		$parsedAmount = $this->parseAmount($amount);
-		if ($parsedAmount === false) {
+		// Validate paid amount (nominal, in the bank account currency)
+		$amountNominal = isset($line['Montant payé']) ? $line['Montant payé'] : null;
+		$parsedNominal = $this->parseAmount($amountNominal);
+		if ($parsedNominal === false) {
 			$rowErrors[] = $langs->trans('ErrorEmptyOrInvalidAmount', $rowNum);
 		} else {
-			$validated['amount'] = $parsedAmount;
+			$validated['amount_nominal'] = $parsedNominal;
+		}
+
+		// Validate paid amount in company currency (CHF).
+		// Optional column: defaults to the nominal amount when absent (mono-currency account).
+		$amountChfRaw = isset($line['Montant CHF']) ? $line['Montant CHF'] : null;
+		if ($amountChfRaw === null || $amountChfRaw === '') {
+			if ($parsedNominal !== false) {
+				$validated['amount_chf'] = $parsedNominal;
+			}
+		} else {
+			$parsedChf = $this->parseAmount($amountChfRaw);
+			if ($parsedChf === false) {
+				$rowErrors[] = $langs->trans('ErrorEmptyOrInvalidAmountChf', $rowNum);
+			} else {
+				$validated['amount_chf'] = $parsedChf;
+			}
+		}
+
+		// Validate total salary amount (company currency, repeated on each line of the group)
+		$totalRaw = isset($line['Salaire total CHF']) ? $line['Salaire total CHF'] : null;
+		$parsedTotal = $this->parseAmount($totalRaw);
+		if ($parsedTotal === false) {
+			$rowErrors[] = $langs->trans('ErrorEmptyOrInvalidTotalSalary', $rowNum);
+		} else {
+			$validated['total_salary_chf'] = $parsedTotal;
 		}
 
 		// Validate label
@@ -320,6 +367,108 @@ class SalaryImportValidator
 		}
 
 		return $validatedRows;
+	}
+
+	/**
+	 * Validate consistency across rows sharing the same salary notation.
+	 *
+	 * Each notation forms a single salary paid in N payments. For every group this checks:
+	 *  - all rows belong to the same employee,
+	 *  - the pay date and period are identical on every row,
+	 *  - the total salary amount is identical on every row,
+	 *  - the sum of the CHF payment amounts equals the declared total.
+	 *
+	 * Errors are appended to $this->errors with the offending row numbers.
+	 *
+	 * @param array $validatedRows Rows returned by validateAll() (must contain salary_notation, row_num, ...)
+	 * @return bool True if every group is consistent
+	 */
+	public function validateGroups($validatedRows)
+	{
+		global $langs;
+
+		// Group rows by salary notation
+		$groups = array();
+		foreach ($validatedRows as $row) {
+			if (empty($row['salary_notation'])) {
+				continue;
+			}
+			$groups[$row['salary_notation']][] = $row;
+		}
+
+		$valid = true;
+
+		foreach ($groups as $notation => $rows) {
+			$rowNums = array();
+			foreach ($rows as $r) {
+				$rowNums[] = isset($r['row_num']) ? $r['row_num'] : '?';
+			}
+			$rowList = implode(', ', $rowNums);
+
+			// 1. Single employee per group
+			$employees = array();
+			foreach ($rows as $r) {
+				if (isset($r['firstname'], $r['lastname'])) {
+					$employees[strtolower($r['firstname'].' '.$r['lastname'])] = true;
+				}
+			}
+			if (count($employees) > 1) {
+				$this->errors[] = $langs->trans('ErrorGroupMultipleEmployees', $notation, $rowList);
+				$valid = false;
+			}
+
+			// 1b. Identical dates on every row: a salary has a single pay date and period,
+			// even when split into several payments (only the account/currency may differ).
+			$dateSignatures = array();
+			foreach ($rows as $r) {
+				$dateSignatures[
+					(isset($r['datep']) ? $r['datep'] : '').'|'
+					.(isset($r['datesp']) ? $r['datesp'] : '').'|'
+					.(isset($r['dateep']) ? $r['dateep'] : '')
+				] = true;
+			}
+			if (count($dateSignatures) > 1) {
+				$this->errors[] = $langs->trans('ErrorGroupDateMismatch', $notation, $rowList);
+				$valid = false;
+			}
+
+			// 2. Identical total on every row (compared rounded to 2 decimals to avoid float noise)
+			$totals = array();
+			foreach ($rows as $r) {
+				if (isset($r['total_salary_chf'])) {
+					$totals[number_format((float) $r['total_salary_chf'], 2, '.', '')] = true;
+				}
+			}
+			if (count($totals) > 1) {
+				$this->errors[] = $langs->trans('ErrorGroupTotalMismatch', $notation, $rowList);
+				$valid = false;
+				continue; // ambiguous total: skip the sum check for this group
+			}
+
+			// 3. Sum of CHF payments equals the declared total.
+			// Round both to 2 decimals (the reconciliation must be exact to the cent).
+			$sumChf = 0.0;
+			foreach ($rows as $r) {
+				if (isset($r['amount_chf'])) {
+					$sumChf += $r['amount_chf'];
+				}
+			}
+			$total = isset($rows[0]['total_salary_chf']) ? $rows[0]['total_salary_chf'] : null;
+			if ($total !== null && round($sumChf, 2) !== round((float) $total, 2)) {
+				// Format both amounts to 2 decimals so the user sees cent-accurate values
+				// (raw floats could surface noise like 4999.9999999997).
+				$this->errors[] = $langs->trans(
+					'ErrorGroupSumMismatch',
+					$notation,
+					$rowList,
+					number_format($sumChf, 2, '.', ''),
+					number_format((float) $total, 2, '.', '')
+				);
+				$valid = false;
+			}
+		}
+
+		return $valid;
 	}
 
 	/**

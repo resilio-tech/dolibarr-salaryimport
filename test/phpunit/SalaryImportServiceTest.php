@@ -242,10 +242,15 @@ class SalaryImportServiceTest extends CommonClassTest
 	{
 		$data = array(
 			0 => array(
+				'salary_notation' => '2024-01-1',
+				'payment_ref' => '2024-01-1-CHF',
 				'userId' => 1,
 				'userName' => 'Test User',
 				'datep' => '2024-01-01',
-				'amount' => 1500.00,
+				'amount_nominal' => 1500.00,
+				'amount_chf' => 1500.00,
+				'total_salary_chf' => 1500.00,
+				'account_currency' => 'CHF',
 				'typepayment' => 1,
 				'typepaymentcode' => 'VIR',
 				'label' => 'Test',
@@ -263,6 +268,12 @@ class SalaryImportServiceTest extends CommonClassTest
 		$this->assertArrayHasKey(0, $serialized);
 		$this->assertEquals(1, $serialized[0]['userId']);
 		$this->assertEquals('Test User', $serialized[0]['userName']);
+		$this->assertEquals('2024-01-1', $serialized[0]['salary_notation']);
+		$this->assertEquals('2024-01-1-CHF', $serialized[0]['payment_ref']);
+		$this->assertEquals(1500.00, $serialized[0]['amount_nominal']);
+		$this->assertEquals(1500.00, $serialized[0]['amount_chf']);
+		$this->assertEquals(1500.00, $serialized[0]['total_salary_chf']);
+		$this->assertEquals('CHF', $serialized[0]['account_currency']);
 	}
 
 	/**
@@ -344,7 +355,12 @@ class SalaryImportServiceTest extends CommonClassTest
 		$mockPersister->errors = array();
 
 		$mockPersister->method('persistAll')->willReturn(array(
-			0 => array('salaryId' => 1, 'paymentId' => 1, 'bankId' => 1)
+			'2024-01-1' => array(
+				'salaryId' => 1,
+				'salaryRef' => '1',
+				'notation' => '2024-01-1',
+				'payments' => array(array('paymentId' => 1, 'paymentRef' => '1', 'num_payment' => '2024-01-1-CHF', 'bankId' => 1))
+			)
 		));
 		$mockPersister->method('isValid')->willReturn(true);
 
@@ -363,10 +379,15 @@ class SalaryImportServiceTest extends CommonClassTest
 		// Execute import with some data
 		$result = $service->executeImport(array(
 			array(
+				'salary_notation' => '2024-01-1',
+				'payment_ref' => '2024-01-1-CHF',
 				'userId' => 1,
 				'userName' => 'Test',
 				'datep' => '2024-01-01',
-				'amount' => 1000,
+				'amount_nominal' => 1000,
+				'amount_chf' => 1000,
+				'total_salary_chf' => 1000,
+				'account_currency' => 'CHF',
 				'typepayment' => 1,
 				'typepaymentcode' => 'VIR',
 				'label' => 'Test',

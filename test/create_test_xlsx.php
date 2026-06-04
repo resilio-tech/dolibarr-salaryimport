@@ -28,18 +28,22 @@ use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 $spreadsheet = new Spreadsheet();
 $sheet = $spreadsheet->getActiveSheet();
 
-// Headers (must match expected format)
+// Headers (must match expected format). One row = one payment, grouped by the "Salaire" notation.
 $headers = [
+	'Salaire',
+	'Réf paiement',
 	'Prénom',
 	'Nom',
 	'Date de paiement',
-	'Montant',
+	'Type de paiement',
+	'Compte bancaire',
+	'Montant payé',
+	'Montant CHF',
+	'Salaire total CHF',
 	'Libellé',
 	'Date de début',
 	'Date de fin',
-	'Type de paiement',
-	'Payé',
-	'Compte bancaire'
+	'Payé'
 ];
 
 // Write headers
@@ -47,12 +51,13 @@ foreach ($headers as $col => $header) {
 	$sheet->setCellValueByColumnAndRow($col + 1, 1, $header);
 }
 
-// Test data - employees that exist in the test database
+// Test data - employees and bank account that exist in the test database.
+// Mono-payment salaries on a CHF account: paid amount == CHF amount == total.
 $data = [
-	['Jean', 'Dupont', '2026-01-15', 4500.00, 'Salaire janvier 2026', '2026-01-01', '2026-01-31', 'VIR', 'oui', 'POSTE_CH'],
-	['Marie', 'Martin', '2026-01-15', 4200.00, 'Salaire janvier 2026', '2026-01-01', '2026-01-31', 'VIR', 'oui', 'POSTE_CH'],
-	['Pierre', 'Durand', '2026-01-15', 3800.00, 'Salaire janvier 2026', '2026-01-01', '2026-01-31', 'VIR', 'oui', 'POSTE_CH'],
-	['Sophie', 'Lefebvre', '2026-01-15', 4000.00, 'Salaire janvier 2026', '2026-01-01', '2026-01-31', 'VIR', 'oui', 'POSTE_CH'],
+	['2026-01-1', '2026-01-1-CHF', 'Jean', 'Dupont', '2026-01-15', 'VIR', 'POSTE_CH', 4500.00, 4500.00, 4500.00, 'Salaire janvier 2026', '2026-01-01', '2026-01-31', 'oui'],
+	['2026-01-2', '2026-01-2-CHF', 'Marie', 'Martin', '2026-01-15', 'VIR', 'POSTE_CH', 4200.00, 4200.00, 4200.00, 'Salaire janvier 2026', '2026-01-01', '2026-01-31', 'oui'],
+	['2026-01-3', '2026-01-3-CHF', 'Pierre', 'Durand', '2026-01-15', 'VIR', 'POSTE_CH', 3800.00, 3800.00, 3800.00, 'Salaire janvier 2026', '2026-01-01', '2026-01-31', 'oui'],
+	['2026-01-4', '2026-01-4-CHF', 'Sophie', 'Lefebvre', '2026-01-15', 'VIR', 'POSTE_CH', 4000.00, 4000.00, 4000.00, 'Salaire janvier 2026', '2026-01-01', '2026-01-31', 'oui'],
 ];
 
 // Write data
@@ -63,7 +68,7 @@ foreach ($data as $rowIndex => $row) {
 }
 
 // Auto-size columns
-foreach (range('A', 'J') as $col) {
+foreach (range('A', 'N') as $col) {
 	$sheet->getColumnDimension($col)->setAutoSize(true);
 }
 

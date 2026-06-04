@@ -113,8 +113,11 @@ try {
 	// Display summary table
 	$labels = array(
 		$langs->trans("EmployeeName"),
+		$langs->trans("SalaryNotation"),
+		$langs->trans("PaymentRef"),
 		$langs->trans("PaymentDate"),
-		$langs->trans("Amount"),
+		$langs->trans("AmountPaid"),
+		$langs->trans("AmountChf"),
 		$langs->trans("PaymentType"),
 		$langs->trans("Label"),
 		$langs->trans("StartDate"),
@@ -131,15 +134,23 @@ try {
 	print '</tr>';
 
 	foreach ($t_data as $row) {
+		// $t_data comes from user-submitted form fields, so any key may be absent.
+		// Default every accessed field to avoid PHP notices breaking the page.
+		$nominal = isset($row['amount_nominal']) ? $row['amount_nominal'] : '';
+		$currency = isset($row['account_currency']) ? $row['account_currency'] : '';
+
 		print '<tr class="oddeven">';
-		print '<td>' . htmlspecialchars($row['userName']) . '</td>';
-		print '<td>' . htmlspecialchars($row['datep']) . '</td>';
-		print '<td>' . htmlspecialchars($row['amount']) . '</td>';
-		print '<td>' . htmlspecialchars($row['typepaymentcode']) . '</td>';
-		print '<td>' . htmlspecialchars($row['label']) . '</td>';
-		print '<td>' . htmlspecialchars($row['datesp']) . '</td>';
-		print '<td>' . htmlspecialchars($row['dateep']) . '</td>';
-		print '<td>' . ($row['paye'] ? $langs->trans("Yes") : $langs->trans("No")) . '</td>';
+		print '<td>' . htmlspecialchars(isset($row['userName']) ? $row['userName'] : '') . '</td>';
+		print '<td>' . htmlspecialchars(isset($row['salary_notation']) ? $row['salary_notation'] : '') . '</td>';
+		print '<td>' . htmlspecialchars(isset($row['payment_ref']) ? $row['payment_ref'] : '') . '</td>';
+		print '<td>' . htmlspecialchars(isset($row['datep']) ? $row['datep'] : '') . '</td>';
+		print '<td>' . htmlspecialchars(trim($nominal . ' ' . $currency)) . '</td>';
+		print '<td>' . htmlspecialchars(isset($row['amount_chf']) ? $row['amount_chf'] : '') . '</td>';
+		print '<td>' . htmlspecialchars(isset($row['typepaymentcode']) ? $row['typepaymentcode'] : '') . '</td>';
+		print '<td>' . htmlspecialchars(isset($row['label']) ? $row['label'] : '') . '</td>';
+		print '<td>' . htmlspecialchars(isset($row['datesp']) ? $row['datesp'] : '') . '</td>';
+		print '<td>' . htmlspecialchars(isset($row['dateep']) ? $row['dateep'] : '') . '</td>';
+		print '<td>' . (!empty($row['paye']) ? $langs->trans("Yes") : $langs->trans("No")) . '</td>';
 
 		$pdfDisplay = $langs->trans("NoPdfAttached");
 		if (!empty($row['pdf'])) {

@@ -59,18 +59,22 @@ echo "Generating valid_import.xlsx...\n";
 $spreadsheet = new Spreadsheet();
 $sheet = $spreadsheet->getActiveSheet();
 
-// Headers
+// Headers (new format: one row = one payment, grouped by the "Salaire" notation)
 $headers = [
+	'Salaire',
+	'Réf paiement',
 	'Prénom',
 	'Nom',
 	'Date de paiement',
-	'Montant',
 	'Type de paiement',
+	'Compte bancaire',
+	'Montant payé',
+	'Montant CHF',
+	'Salaire total CHF',
 	'Libellé',
 	'Date de début',
 	'Date de fin',
-	'Payé',
-	'Compte bancaire'
+	'Payé'
 ];
 
 $col = 1;
@@ -79,12 +83,12 @@ foreach ($headers as $header) {
 	$col++;
 }
 
-// Test data
+// Test data - mono-payment salaries on a CHF account (paid == CHF == total)
 $testData = [
-	['Jean', 'Dupont', dateToExcel('2026-01-31'), 2500.00, 'VIR', 'Salaire Janvier 2026', dateToExcel('2026-01-01'), dateToExcel('2026-01-31'), 'oui', 'POSTE_CH'],
-	['Marie', 'Martin', dateToExcel('2026-01-31'), 2800.50, 'VIR', 'Salaire Janvier 2026', dateToExcel('2026-01-01'), dateToExcel('2026-01-31'), 'oui', 'POSTE_CH'],
-	['Pierre', 'Durand', dateToExcel('2026-01-31'), 2200.00, 'VIR', 'Salaire Janvier 2026', dateToExcel('2026-01-01'), dateToExcel('2026-01-31'), 'oui', 'POSTE_CH'],
-	['Sophie', 'Lefebvre', dateToExcel('2026-02-28'), 3100.75, 'VIR', 'Salaire Février 2026', dateToExcel('2026-02-01'), dateToExcel('2026-02-28'), 'non', 'POSTE_CH'],
+	['2026-01-1', '2026-01-1-CHF', 'Jean', 'Dupont', dateToExcel('2026-01-31'), 'VIR', 'POSTE_CH', 2500.00, 2500.00, 2500.00, 'Salaire Janvier 2026', dateToExcel('2026-01-01'), dateToExcel('2026-01-31'), 'oui'],
+	['2026-01-2', '2026-01-2-CHF', 'Marie', 'Martin', dateToExcel('2026-01-31'), 'VIR', 'POSTE_CH', 2800.50, 2800.50, 2800.50, 'Salaire Janvier 2026', dateToExcel('2026-01-01'), dateToExcel('2026-01-31'), 'oui'],
+	['2026-01-3', '2026-01-3-CHF', 'Pierre', 'Durand', dateToExcel('2026-01-31'), 'VIR', 'POSTE_CH', 2200.00, 2200.00, 2200.00, 'Salaire Janvier 2026', dateToExcel('2026-01-01'), dateToExcel('2026-01-31'), 'oui'],
+	['2026-02-4', '2026-02-4-CHF', 'Sophie', 'Lefebvre', dateToExcel('2026-02-28'), 'VIR', 'POSTE_CH', 3100.75, 3100.75, 3100.75, 'Salaire Février 2026', dateToExcel('2026-02-01'), dateToExcel('2026-02-28'), 'non'],
 ];
 
 $row = 2;
@@ -97,14 +101,14 @@ foreach ($testData as $data) {
 	$row++;
 }
 
-// Format date columns (C = Date de paiement, G = Date de début, H = Date de fin)
+// Format date columns (E = Date de paiement, L = Date de début, M = Date de fin)
 $dateFormat = 'DD/MM/YYYY';
-$sheet->getStyle('C2:C5')->getNumberFormat()->setFormatCode($dateFormat);
-$sheet->getStyle('G2:G5')->getNumberFormat()->setFormatCode($dateFormat);
-$sheet->getStyle('H2:H5')->getNumberFormat()->setFormatCode($dateFormat);
+$sheet->getStyle('E2:E5')->getNumberFormat()->setFormatCode($dateFormat);
+$sheet->getStyle('L2:L5')->getNumberFormat()->setFormatCode($dateFormat);
+$sheet->getStyle('M2:M5')->getNumberFormat()->setFormatCode($dateFormat);
 
 // Auto-size columns
-foreach (range('A', 'J') as $columnID) {
+foreach (range('A', 'N') as $columnID) {
 	$sheet->getColumnDimension($columnID)->setAutoSize(true);
 }
 

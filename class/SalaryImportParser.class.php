@@ -61,10 +61,19 @@ class SalaryImportParser
 	 */
 	protected $columnMapping = array(
 		// French
+		'salaire' => 'Salaire',
+		'réf paiement' => 'Réf paiement',
+		'ref paiement' => 'Réf paiement',
+		'référence paiement' => 'Réf paiement',
 		'prénom' => 'Prénom',
 		'nom' => 'Nom',
 		'date de paiement' => 'Date de paiement',
-		'montant' => 'Montant',
+		'montant payé' => 'Montant payé',
+		'montant' => 'Montant payé', // backward compat (mono-currency files)
+		'montant chf' => 'Montant CHF',
+		'montant payé en chf' => 'Montant CHF',
+		'salaire total chf' => 'Salaire total CHF',
+		'montant salaire total (chf)' => 'Salaire total CHF',
 		'libellé' => 'Libellé',
 		'date de début' => 'Date de début',
 		'date de fin' => 'Date de fin',
@@ -72,12 +81,19 @@ class SalaryImportParser
 		'payé' => 'Payé',
 		'compte bancaire' => 'Compte bancaire',
 		// English
+		'salary' => 'Salaire',
+		'payment ref' => 'Réf paiement',
+		'payment reference' => 'Réf paiement',
 		'first name' => 'Prénom',
 		'firstname' => 'Prénom',
 		'last name' => 'Nom',
 		'lastname' => 'Nom',
 		'payment date' => 'Date de paiement',
-		'amount' => 'Montant',
+		'amount paid' => 'Montant payé',
+		'amount' => 'Montant payé', // backward compat (mono-currency files)
+		'amount chf' => 'Montant CHF',
+		'amount paid chf' => 'Montant CHF',
+		'total salary chf' => 'Salaire total CHF',
 		'label' => 'Libellé',
 		'start date' => 'Date de début',
 		'end date' => 'Date de fin',
@@ -111,8 +127,39 @@ class SalaryImportParser
 			return $this->columnMapping[$normalized];
 		}
 
+		// Accent-insensitive fallback: a common variant like "Montant paye" (without the
+		// accent on "payé") should still map to the canonical "Montant payé" key.
+		$folded = $this->stripAccents($normalized);
+		foreach ($this->columnMapping as $key => $value) {
+			if ($this->stripAccents($key) === $folded) {
+				return $value;
+			}
+		}
+
 		// Return original if no mapping found
 		return $header;
+	}
+
+	/**
+	 * Strip French accents from an already-lowercased string.
+	 *
+	 * Self-contained (no dependency on the Dolibarr core) so it works in isolated unit tests.
+	 *
+	 * @param string $string Lowercased input
+	 * @return string Input with accented characters folded to their ASCII equivalent
+	 */
+	protected function stripAccents($string)
+	{
+		$map = array(
+			'à' => 'a', 'â' => 'a', 'ä' => 'a', 'á' => 'a', 'ã' => 'a', 'å' => 'a',
+			'ç' => 'c',
+			'è' => 'e', 'é' => 'e', 'ê' => 'e', 'ë' => 'e',
+			'ì' => 'i', 'î' => 'i', 'ï' => 'i', 'í' => 'i',
+			'ò' => 'o', 'ô' => 'o', 'ö' => 'o', 'ó' => 'o', 'õ' => 'o',
+			'ù' => 'u', 'û' => 'u', 'ü' => 'u', 'ú' => 'u',
+			'ÿ' => 'y', 'ñ' => 'n',
+		);
+		return strtr($string, $map);
 	}
 
 	/**

@@ -86,20 +86,20 @@ class SalaryImportPersisterTest extends TestCase
 	}
 
 	// ========================================
-	// Tests for persistRow order of operations
+	// Tests for persistGroup order of operations
 	// ========================================
 
 	/**
-	 * Verify that in persistRow, payment_salary is created BEFORE bank_url
+	 * Verify that in persistGroup, payment_salary is created BEFORE bank_url
 	 */
 	public function testPersistRowSourceCodeOrderOfOperations()
 	{
 		$sourceFile = dirname(__FILE__).'/../../../class/SalaryImportPersister.class.php';
 		$source = file_get_contents($sourceFile);
 
-		// Find the persistRow method
-		$pattern = '/function persistRow\([^)]*\)\s*\{([\s\S]+?)\n\t\}/';
-		$this->assertMatchesRegularExpression($pattern, $source, 'Should find persistRow method');
+		// Find the persistGroup method
+		$pattern = '/function persistGroup\([^)]*\)\s*\{([\s\S]+?)\n\t\}/';
+		$this->assertMatchesRegularExpression($pattern, $source, 'Should find persistGroup method');
 
 		preg_match($pattern, $source, $matches);
 		$methodBody = $matches[1];
@@ -309,33 +309,33 @@ class SalaryImportPersisterTest extends TestCase
 	}
 
 	/**
-	 * Verify that persistRow collects PDF errors as warnings
+	 * Verify that persistGroup collects PDF errors as warnings
 	 */
 	public function testPersistRowCollectsPdfErrorsAsWarnings()
 	{
 		$sourceFile = dirname(__FILE__).'/../../../class/SalaryImportPersister.class.php';
 		$source = file_get_contents($sourceFile);
 
-		// Find the persistRow method
-		$pattern = '/function persistRow\([^)]*\)\s*\{([\s\S]+?)\n\t\}/';
+		// Find the persistGroup method
+		$pattern = '/function persistGroup\([^)]*\)\s*\{([\s\S]+?)\n\t\}/';
 		preg_match($pattern, $source, $matches);
 		$methodBody = $matches[1];
 
 		// Verify PDF errors are collected as warnings with context
-		$this->assertStringContainsString('$this->warnings[]', $methodBody, 'persistRow should append to $this->warnings');
-		$this->assertStringContainsString('$context', $methodBody, 'persistRow should include context (employee name)');
+		$this->assertStringContainsString('$this->warnings[]', $methodBody, 'persistGroup should append to $this->warnings');
+		$this->assertStringContainsString('$context', $methodBody, 'persistGroup should include context (employee name)');
 	}
 
 	/**
-	 * Verify that persistRow does not fail when PDF move fails
+	 * Verify that persistGroup does not fail when PDF move fails
 	 */
 	public function testPersistRowDoesNotFailOnPdfError()
 	{
 		$sourceFile = dirname(__FILE__).'/../../../class/SalaryImportPersister.class.php';
 		$source = file_get_contents($sourceFile);
 
-		// Find the persistRow method
-		$pattern = '/function persistRow\([^)]*\)\s*\{([\s\S]+?)\n\t\}/';
+		// Find the persistGroup method
+		$pattern = '/function persistGroup\([^)]*\)\s*\{([\s\S]+?)\n\t\}/';
 		preg_match($pattern, $source, $matches);
 		$methodBody = $matches[1];
 
@@ -346,5 +346,56 @@ class SalaryImportPersisterTest extends TestCase
 		// Verify there's no "return $result" (empty) or "return array()" after PDF error
 		// The result should still be populated with salary data
 		$this->assertStringContainsString("'salaryId' => \$salaryId", $afterPdfMove, 'Should still return salaryId after PDF section');
+	}
+
+	// ========================================
+	// Tests for the multi-currency / grouping changes
+	// ========================================
+
+	/**
+	 * Verify insertBankTransaction persists amount_main_currency (company-currency amount)
+	 */
+	public function testInsertBankTransactionIncludesAmountMainCurrency()
+	{
+		$sourceFile = dirname(__FILE__).'/../../../class/SalaryImportPersister.class.php';
+		$source = file_get_contents($sourceFile);
+
+		$pattern = '/function insertBankTransaction\([^)]+\)\s*\{([\s\S]+?)\n\t\}/';
+		preg_match($pattern, $source, $matches);
+		$methodBody = $matches[1];
+
+		$this->assertStringContainsString('amount_main_currency', $methodBody, 'insertBankTransaction should persist amount_main_currency');
+		$this->assertStringContainsString('NULL', $methodBody, 'amount_main_currency should be NULL when same currency');
+	}
+
+	/**
+	 * Verify insertPaymentSalary persists num_payment (the displayed payment reference)
+	 */
+	public function testInsertPaymentSalaryIncludesNumPayment()
+	{
+		$sourceFile = dirname(__FILE__).'/../../../class/SalaryImportPersister.class.php';
+		$source = file_get_contents($sourceFile);
+
+		$pattern = '/function insertPaymentSalary\([^)]+\)\s*\{([\s\S]+?)\n\t\}/';
+		preg_match($pattern, $source, $matches);
+		$methodBody = $matches[1];
+
+		$this->assertStringContainsString('num_payment', $methodBody, 'insertPaymentSalary should persist num_payment');
+	}
+
+	/**
+	 * Verify persistAll groups rows by salary notation (one salary per notation)
+	 */
+	public function testPersistAllGroupsByNotation()
+	{
+		$sourceFile = dirname(__FILE__).'/../../../class/SalaryImportPersister.class.php';
+		$source = file_get_contents($sourceFile);
+
+		$pattern = '/function persistAll\([^)]*\)\s*\{([\s\S]+?)\n\t\}/';
+		preg_match($pattern, $source, $matches);
+		$methodBody = $matches[1];
+
+		$this->assertStringContainsString('salary_notation', $methodBody, 'persistAll should group by salary_notation');
+		$this->assertStringContainsString('persistGroup', $methodBody, 'persistAll should delegate to persistGroup');
 	}
 }
