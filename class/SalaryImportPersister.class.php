@@ -445,8 +445,10 @@ class SalaryImportPersister
 
 		// One bank transaction + payment_salary + links per line of the group
 		foreach ($rows as $row) {
-			// amount_main_currency only when the account currency differs from the company currency
-			$accountCurrency = isset($row['account_currency']) ? $row['account_currency'] : $companyCurrency;
+			// amount_main_currency only when the account currency differs from the company currency.
+			// An empty account currency (NULL/'' in llx_bank_account.currency_code) is unknown, so we
+			// assume the company currency and leave amount_main_currency NULL.
+			$accountCurrency = !empty($row['account_currency']) ? $row['account_currency'] : $companyCurrency;
 			$amountMainCurrency = ($accountCurrency !== $companyCurrency) ? $row['amount_chf'] : null;
 
 			$bankId = $this->insertBankTransaction(
@@ -574,10 +576,17 @@ class SalaryImportPersister
 			return $results;
 		}
 
-		// Group rows by salary notation (preserve first-seen order)
+		// Group rows by salary notation (preserve first-seen order).
+		// persistAll receives user-submitted confirm data: a missing notation means malformed or
+		// tampered input, so we fail fast instead of silently creating a "row_N" labelled salary.
 		$groups = array();
 		foreach ($enrichedRows as $index => $data) {
-			$notation = isset($data['salary_notation']) ? $data['salary_notation'] : ('row_'.$index);
+			if (empty($data['salary_notation'])) {
+				$rowLabel = !empty($data['userName']) ? $data['userName'] : ('#'.($index + 1));
+				$this->errors[] = $langs->trans('ErrorMissingSalaryNotation', $rowLabel);
+				return $results; // empty: abort the whole import
+			}
+			$notation = $data['salary_notation'];
 			$groups[$notation][] = $data;
 		}
 

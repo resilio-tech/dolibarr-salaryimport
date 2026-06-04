@@ -77,6 +77,7 @@ class LangsMock
 		'ErrorIndexPdf' => 'Failed to index PDF file in database',
 		'ErrorPersistRow' => 'Error persisting row %s: %s',
 		'ErrorPersistGroup' => 'Error persisting salary %s: %s',
+		'ErrorMissingSalaryNotation' => 'Missing salary notation for row %s: cannot import',
 
 		// Cleanup errors
 		'ErrorDeleteXlsx' => 'Failed to delete XLSX file',

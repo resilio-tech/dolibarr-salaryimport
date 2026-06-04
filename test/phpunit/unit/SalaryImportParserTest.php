@@ -366,4 +366,29 @@ class SalaryImportParserTest extends TestCase
 			@unlink($tempFile);
 		}
 	}
+
+	public function testParseFileMapsAccentlessHeader()
+	{
+		$tempFile = sys_get_temp_dir().'/test_accentless_header_'.uniqid().'.xlsx';
+
+		try {
+			$spreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
+			$sheet = $spreadsheet->getActiveSheet();
+
+			// Accent-less variant "Montant paye" must still map to the canonical "Montant payé" key
+			$sheet->setCellValue('A1', 'Montant paye');
+			$sheet->setCellValue('A2', 4321);
+
+			$writer = new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($spreadsheet);
+			$writer->save($tempFile);
+
+			$this->assertEquals(1, $this->parser->parseFile($tempFile));
+			$line = $this->parser->getLine(0);
+
+			$this->assertArrayHasKey('Montant payé', $line);
+			$this->assertEquals(4321, $line['Montant payé']);
+		} finally {
+			@unlink($tempFile);
+		}
+	}
 }
