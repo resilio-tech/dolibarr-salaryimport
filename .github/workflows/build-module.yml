@@ -94,31 +94,22 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Create PR for version update
+      - name: Commit version update
         if: github.event_name == 'release'
         run: |
           VERSION="${{ steps.version.outputs.version }}"
           CURRENT_VERSION="${{ steps.version.outputs.current }}"
 
           if [ "$VERSION" = "$CURRENT_VERSION" ]; then
-            echo "Version already up to date ($VERSION), skipping PR creation"
+            echo "Version already up to date ($VERSION), nothing to commit"
             exit 0
           fi
-
-          BRANCH_NAME="chore/bump-version-${VERSION}"
 
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
-          git checkout -b "$BRANCH_NAME"
           git add core/modules/modSalaryImport.class.php
           git commit -m "chore: bump version to $VERSION"
-          git push origin "$BRANCH_NAME"
-
-          gh pr create \
-            --title "chore: bump version to $VERSION" \
-            --body "Automatic version bump after release $VERSION" \
-            --base main \
-            --head "$BRANCH_NAME"
+          git push origin HEAD:main
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
