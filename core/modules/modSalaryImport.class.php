@@ -297,6 +297,22 @@ class modSalaryImport extends DolibarrModules
 
 		$sql = array();
 
+		// Historical data fix (bug present before v1.11): the bank <-> salary-payment link in
+		// llx_bank_url was created with the salary id instead of the payment_salary id, so bank
+		// entries pointed to the salary rather than to the salary payment (reglement de salaire).
+		// Repair past rows by remapping url_id to the payment_salary that shares the same bank line.
+		// Idempotent: only rows still holding the salary id (url_id = payment_salary.fk_salary and
+		// not yet the payment id) are updated. ignoreerror so a data edge case never blocks activation.
+		$sql[] = array(
+			'sql' => "UPDATE ".MAIN_DB_PREFIX."bank_url AS bu"
+				." INNER JOIN ".MAIN_DB_PREFIX."payment_salary AS ps ON ps.fk_bank = bu.fk_bank"
+				." SET bu.url_id = ps.rowid"
+				." WHERE bu.type = 'payment_salary'"
+				." AND bu.url_id = ps.fk_salary"
+				." AND bu.url_id <> ps.rowid",
+			'ignoreerror' => 1,
+		);
+
 		return $this->_init($sql, $options);
 	}
 
