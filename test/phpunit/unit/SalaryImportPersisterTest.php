@@ -438,6 +438,26 @@ class SalaryImportPersisterTest extends TestCase
 	}
 
 	/**
+	 * Verify the payment counter query stays portable across the databases Dolibarr supports
+	 */
+	public function testInitCountersUsesNoDatabaseSpecificSyntax()
+	{
+		$sourceFile = dirname(__FILE__).'/../../../class/SalaryImportPersister.class.php';
+		$source = file_get_contents($sourceFile);
+
+		$pattern = '/function initCounters\([^)]*\)\s*\{([\s\S]+?)\n\t\}/';
+		$this->assertMatchesRegularExpression($pattern, $source, 'Should find initCounters method');
+
+		preg_match($pattern, $source, $matches);
+		$methodBody = $matches[1];
+
+		$this->assertStringNotContainsString('CAST(', $methodBody, 'CAST(... AS UNSIGNED) is MySQL-only');
+		$this->assertStringNotContainsString('LIMIT', $methodBody, 'LIMIT should not be needed once the max is computed in PHP');
+		$this->assertStringContainsString('$this->conf->entity', $methodBody, 'The counter should be scoped to the current entity');
+		$this->assertStringContainsString('if ($ref > $highest) {', $methodBody, 'The highest ref should be computed in PHP');
+	}
+
+	/**
 	 * Verify the salary ref counter is gone (the notation is the ref now)
 	 */
 	public function testNoSalaryRefCounterRemains()

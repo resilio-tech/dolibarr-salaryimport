@@ -116,9 +116,14 @@ class SalaryImportPersister
 	}
 
 	/**
-	 * Initialize the payment reference counter by fetching the last ref from database
+	 * Initialize the payment reference counter by fetching the highest ref from database
 	 *
 	 * Salaries do not use a counter: their ref is the salary notation (see persistGroup).
+	 *
+	 * The maximum is computed in PHP rather than by the database: ordering on a numeric cast of a
+	 * varchar column needs a different, non-portable syntax on every backend, and there is no index
+	 * on llx_payment_salary.ref to preserve anyway. intval() also matches exactly how the counter is
+	 * turned back into a ref in getNextPaymentRef().
 	 *
 	 * @return int 1 on success, <0 on error
 	 */
@@ -126,15 +131,24 @@ class SalaryImportPersister
 	{
 		global $langs;
 
-		// Get last payment ref
-		$sql = "SELECT ref FROM ".MAIN_DB_PREFIX."payment_salary ORDER BY CAST(ref AS UNSIGNED) DESC LIMIT 1";
+		// Scoped by entity, like the rows this counter is about to number
+		$sql = "SELECT ref FROM ".MAIN_DB_PREFIX."payment_salary";
+		$sql .= " WHERE entity = ".intval($this->conf->entity);
+
 		$result = $this->db->query($sql);
 		if (!$result) {
 			$this->errors[] = $langs->trans('ErrorGetLastPaymentRef', $this->db->lasterror());
 			return -2;
 		}
-		$obj = $this->db->fetch_object($result);
-		$this->paymentRefCounter = $obj ? intval($obj->ref) : 0;
+
+		$highest = 0;
+		while ($obj = $this->db->fetch_object($result)) {
+			$ref = intval($obj->ref);
+			if ($ref > $highest) {
+				$highest = $ref;
+			}
+		}
+		$this->paymentRefCounter = $highest;
 
 		$this->countersInitialized = true;
 		return 1;
