@@ -174,10 +174,13 @@ try {
 
 	$db->commit();
 
-	setEventMessages($langs->trans("ImportSuccess", $importedCount), null, 'mesgs');
-
 	// Groups persist one by one, so some can fail while others are committed. executeImport only
-	// returns how many succeeded: without this, a partial import would be reported as a full success.
+	// returns how many succeeded: without this, a partial import would be reported as a full success
+	// and an import where every group failed would still print a success banner.
+	if ($importedCount > 0) {
+		setEventMessages($langs->trans("ImportSuccess", $importedCount), null, 'mesgs');
+	}
+
 	if (!empty($service->errors)) {
 		setEventMessages(null, $service->errors, 'errors');
 	}

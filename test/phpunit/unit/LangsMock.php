@@ -42,6 +42,7 @@ class LangsMock
 		'ErrorEmptyOrInvalidAmountChf' => 'Montant CHF invalide à la ligne %s',
 		'ErrorEmptyOrInvalidTotalSalary' => 'Salaire total CHF vide ou invalide à la ligne %s',
 		'ErrorEmptyLabel' => 'Libellé vide à la ligne %s',
+		'ErrorLabelTooLong' => 'Libellé trop long (%s caractères maximum) à la ligne %s',
 		'ErrorEmptyStartDate' => 'Date de début vide à la ligne %s',
 		'ErrorInvalidStartDate' => 'Date de début (%s) invalide à la ligne %s',
 		'ErrorEmptyEndDate' => 'Date de fin vide à la ligne %s',

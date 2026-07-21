@@ -138,6 +138,7 @@ ErrorEmptyOrInvalidAmount = Paid amount empty or invalid at row %s
 ErrorEmptyOrInvalidAmountChf = Amount CHF invalid at row %s
 ErrorEmptyOrInvalidTotalSalary = Total salary CHF empty or invalid at row %s
 ErrorEmptyLabel = Label empty at row %s
+ErrorLabelTooLong = Label too long (%s characters maximum) at row %s
 ErrorEmptyStartDate = Start date empty at row %s
 ErrorInvalidStartDate = Start date (%s) invalid at row %s
 ErrorEmptyEndDate = End date empty at row %s

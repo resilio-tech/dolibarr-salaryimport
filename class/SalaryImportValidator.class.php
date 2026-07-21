@@ -38,6 +38,15 @@ class SalaryImportValidator
 	const NOTATION_MAX_LENGTH = 30;
 
 	/**
+	 * Maximum length of an imported label.
+	 *
+	 * The label is persisted as llx_payment_salary.label, a varchar(255), on every payment of the
+	 * salary. Refusing it here gives the offending row number instead of a failed INSERT halfway
+	 * through the import.
+	 */
+	const LABEL_MAX_LENGTH = 255;
+
+	/**
 	 * @var array Error messages
 	 */
 	public $errors = array();
@@ -286,6 +295,8 @@ class SalaryImportValidator
 		$label = isset($line['Libellé']) ? trim($line['Libellé']) : '';
 		if (empty($label)) {
 			$rowErrors[] = $langs->trans('ErrorEmptyLabel', $rowNum);
+		} elseif (mb_strlen($label) > self::LABEL_MAX_LENGTH) {
+			$rowErrors[] = $langs->trans('ErrorLabelTooLong', self::LABEL_MAX_LENGTH, $rowNum);
 		} else {
 			$validated['label'] = $label;
 		}

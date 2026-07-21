@@ -348,6 +348,18 @@ class SalaryImportValidatorTest extends TestCase
 		$this->assertEquals(str_repeat('a', 30), $result['salary_notation']);
 	}
 
+	public function testValidateRowLabelTooLongForTheLabelColumns()
+	{
+		$line = $this->getValidLine();
+		// llx_payment_salary.label and llx_salary.label are varchar(255)
+		$line['Libellé'] = str_repeat('a', 256);
+
+		$result = $this->validator->validateRow($line, 5);
+
+		$this->assertEmpty($result);
+		$this->assertContains('Libellé trop long (255 caractères maximum) à la ligne 5', $this->validator->errors);
+	}
+
 	public function testValidateRowMissingLabel()
 	{
 		$line = $this->getValidLine();
