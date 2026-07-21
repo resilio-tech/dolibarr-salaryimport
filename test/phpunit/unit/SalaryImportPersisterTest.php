@@ -505,9 +505,10 @@ class SalaryImportPersisterTest extends TestCase
 		preg_match($pattern, $source, $matches);
 		$methodBody = $matches[1];
 
-		$this->assertStringContainsString('$notation = (string) $notation;', $methodBody, 'Notations should be cast to string');
-		$this->assertStringContainsString('classifySalaryMatch($ref, $label, $notation)', $methodBody, 'The mapping should go through classifySalaryMatch');
-		$this->assertStringNotContainsString('in_array($candidate, $wanted, true)', $methodBody, 'The strict mapping should be gone');
+		$this->assertStringContainsString('normalizeNotations($notations)', $methodBody, 'Notations should be normalised to strings');
+		$this->assertStringContainsString('UNION ALL', $methodBody, 'The database should report which notation each row matched');
+		$this->assertStringContainsString("array('notation' => \$notation, 'status' => \$status)", $methodBody, 'The result must be a list, not a map keyed by notation');
+		$this->assertStringNotContainsString('$existing[$notation] =', $methodBody, 'A map keyed by notation would coerce numeric notations to int keys');
 	}
 
 	/**
@@ -568,8 +569,14 @@ class SalaryImportPersisterTest extends TestCase
 
 		$this->assertStringContainsString('self::STATUS_IMPORTED', $methodBody, 'Should report our own imports');
 		$this->assertStringContainsString('self::STATUS_CONFLICT', $methodBody, 'Should report values held by other salaries');
-		$this->assertStringContainsString('$labelMatches || $labelIsPrefixed', $methodBody, 'A ref match is ours only when the label carries the notation too');
+		$this->assertStringContainsString(
+			'ctype_digit($notation) ? self::STATUS_CONFLICT : self::STATUS_IMPORTED',
+			$methodBody,
+			'Only a numeric notation can collide with an old counter ref'
+		);
 		$this->assertStringContainsString("(\$ref !== '') ? self::STATUS_IMPORTED : self::STATUS_CONFLICT", $methodBody, 'A label-only match needs a ref to be claimed as a 2.2.0 import');
+		$this->assertStringContainsString('strlen($notation) + 1', $methodBody, 'strncasecmp counts bytes, so the length must be in bytes');
+		$this->assertStringNotContainsString('mb_strlen($notation) + 1', $methodBody, 'A character length would compare short on a multibyte notation');
 	}
 
 	/**

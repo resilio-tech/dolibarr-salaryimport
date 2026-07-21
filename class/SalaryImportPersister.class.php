@@ -140,110 +140,158 @@ class SalaryImportPersister
 	 * stored with a counter as ref and the bare notation as label. Salaries imported before 2.2.0
 	 * stored no notation at all and cannot be detected.
 	 *
+	 * Matching is done by the database, not in PHP, so it follows the column collation exactly. A
+	 * PHP-side equality would disagree with an accent-insensitive collation and let through a
+	 * duplicate the database had already matched.
+	 *
 	 * Each hit is classified, because the two cases must not be treated alike:
 	 *
 	 *  - STATUS_IMPORTED: the salary was created by this module for that notation. Skipping it on
 	 *    re-import is safe, it is already in the database.
-	 *  - STATUS_CONFLICT: the value is taken by a salary this import did not create, typically an
-	 *    old counter ref that happens to look like the notation, or a hand-typed label. Importing
-	 *    is impossible (uk_salary_ref) but skipping would silently drop a payroll entry that was
-	 *    never imported, so this always has to be raised to the user.
+	 *  - STATUS_CONFLICT: the value is taken by a salary this import did not create, typically a
+	 *    counter ref left by 2.2.0 that happens to look like the notation. Importing is impossible
+	 *    (uk_salary_ref) but skipping would silently drop a payroll entry that was never imported,
+	 *    so this always has to be raised to the user.
+	 *
+	 * The result is a list, never a map keyed by notation: PHP turns a decimal-integer-like key
+	 * into an int, and a notation such as "2026" would then stop comparing equal to its own string.
 	 *
 	 * @param array $notations Salary notations to look for
-	 * @return array|null Map of notation => STATUS_*, empty if none exists, null on database error
+	 * @return array|null List of array('notation' => string, 'status' => STATUS_*), or null on error
 	 */
 	public function findExistingSalaryRefs($notations)
 	{
 		global $langs;
 
-		if (empty($notations)) {
-			return array();
-		}
-
-		// Cast to string: a purely numeric notation reaches this method as an int when it comes from
-		// an array key (see persistAll), and it has to be compared against DB strings below.
-		$wanted = array();
-		foreach ($notations as $notation) {
-			$notation = (string) $notation;
-			if ($notation !== '' && !in_array($notation, $wanted, true)) {
-				$wanted[] = $notation;
-			}
-		}
+		$wanted = $this->normalizeNotations($notations);
 		if (empty($wanted)) {
 			return array();
 		}
 
-		$quoted = array();
+		// One SELECT per notation, unioned: it lets the database report which notation a row matched
+		// (and whether it matched on ref or on label) under its own collation rules.
+		$selects = array();
 		foreach ($wanted as $notation) {
-			$quoted[] = "'".$this->db->escape($notation)."'";
+			$escaped = $this->db->escape($notation);
+			$select = "SELECT '".$escaped."' AS notation,";
+			$select .= " CASE WHEN ref = '".$escaped."' THEN 1 ELSE 0 END AS ref_match,";
+			$select .= " CASE WHEN label = '".$escaped."' THEN 1 ELSE 0 END AS label_match,";
+			$select .= " ref, label";
+			$select .= " FROM ".MAIN_DB_PREFIX."salary";
+			$select .= " WHERE entity = ".intval($this->conf->entity);
+			$select .= " AND (ref = '".$escaped."' OR label = '".$escaped."')";
+			$selects[] = $select;
 		}
-		$quotedList = implode(', ', $quoted);
 
-		// DISTINCT because a notation can match on both columns at once, and because the uniqueness
-		// of (ref, entity) guaranteed by the uk_salary_ref index does not extend to the label.
-		$sql = "SELECT DISTINCT ref, label FROM ".MAIN_DB_PREFIX."salary";
-		$sql .= " WHERE entity = ".intval($this->conf->entity);
-		$sql .= " AND (ref IN (".$quotedList.")";
-		$sql .= " OR label IN (".$quotedList."))";
-
-		$result = $this->db->query($sql);
+		$result = $this->db->query(implode(' UNION ALL ', $selects));
 		if (!$result) {
 			$this->errors[] = $langs->trans('ErrorCheckSalaryRefs', $this->db->lasterror());
 			return null;
 		}
 
-		// Classify each hit against the notation the caller asked about. Comparisons are
-		// case-insensitive to mirror the _ci collation the IN clauses above run under: a strict
-		// comparison here would drop rows the database matched and let a duplicate through.
-		$existing = array();
+		$statuses = array();
 		while ($obj = $this->db->fetch_object($result)) {
-			$ref = ($obj->ref === null) ? '' : (string) $obj->ref;
+			$notation = (string) $obj->notation;
 			$label = ($obj->label === null) ? '' : (string) $obj->label;
 
-			foreach ($wanted as $notation) {
-				$status = $this->classifySalaryMatch($ref, $label, $notation);
-				if ($status === '') {
-					continue;
-				}
-				// A conflict outranks an import: if any row makes the value unusable, say so.
-				if (!isset($existing[$notation]) || $status === self::STATUS_CONFLICT) {
-					$existing[$notation] = $status;
-				}
+			$ref = ($obj->ref === null) ? '' : (string) $obj->ref;
+
+			$status = $this->classifySalaryMatch(!empty($obj->ref_match), !empty($obj->label_match), $ref, $label, $notation);
+			if ($status === '') {
+				continue;
+			}
+			// A conflict outranks an import: if any row makes the value unusable, say so.
+			$key = array_search($notation, array_column($statuses, 'notation'), true);
+			if ($key === false) {
+				$statuses[] = array('notation' => $notation, 'status' => $status);
+			} elseif ($status === self::STATUS_CONFLICT) {
+				$statuses[$key]['status'] = $status;
 			}
 		}
 
-		return $existing;
+		return $statuses;
+	}
+
+	/**
+	 * Deduplicate notations and turn them into strings.
+	 *
+	 * Notations reach the persister as array keys in places, and PHP normalises a decimal-integer
+	 * key to an int, so "2026" must be cast back before it is compared or sent to the database.
+	 *
+	 * @param array $notations Raw notations
+	 * @return array List of unique non-empty notation strings
+	 */
+	public function normalizeNotations($notations)
+	{
+		$wanted = array();
+
+		foreach ((array) $notations as $notation) {
+			$notation = (string) $notation;
+			if ($notation !== '' && !in_array($notation, $wanted, true)) {
+				$wanted[] = $notation;
+			}
+		}
+
+		return $wanted;
+	}
+
+	/**
+	 * Read the status of a notation out of a findExistingSalaryRefs() result.
+	 *
+	 * @param array  $existing List returned by findExistingSalaryRefs()
+	 * @param string $notation Notation to look up
+	 * @return string STATUS_IMPORTED, STATUS_CONFLICT, or '' when the notation is not in the list
+	 */
+	public function statusForNotation($existing, $notation)
+	{
+		$notation = (string) $notation;
+
+		foreach ((array) $existing as $entry) {
+			if (isset($entry['notation']) && (string) $entry['notation'] === $notation) {
+				return isset($entry['status']) ? $entry['status'] : '';
+			}
+		}
+
+		return '';
 	}
 
 	/**
 	 * Decide what an existing salary row means for a notation we are about to import.
 	 *
-	 * Salaries created by this module always carry the notation in both columns: the ref is the
-	 * notation and the label is the notation, alone or followed by the imported label. The 2.2.0
-	 * releases wrote a counter as ref and the bare notation as label. Anything else that merely
-	 * happens to hold the value (an old counter ref that looks like the notation, a label typed by
-	 * hand in the Dolibarr UI) is a conflict, not one of our imports.
+	 * Dolibarr itself never writes llx_salary.ref: Salary::create() omits the column, update() and
+	 * setPaid() leave it alone, and fetch() only overwrites the property in memory with the rowid.
+	 * A stored ref equal to the notation therefore comes from this module, and the only question is
+	 * whether it identifies this very salary or is a counter left by 2.2.0 that happens to look
+	 * like the notation. Only a purely numeric notation can collide with such a counter, so any
+	 * other notation is claimed as ours even when the label was edited afterwards.
 	 *
-	 * @param string $ref      Salary ref read from the database ('' when NULL)
-	 * @param string $label    Salary label read from the database ('' when NULL)
-	 * @param string $notation Notation being imported
+	 * @param bool   $refMatches   Whether the database matched the notation on llx_salary.ref
+	 * @param bool   $labelMatches Whether the database matched the notation on llx_salary.label
+	 * @param string $ref          Salary ref read from the database ('' when NULL)
+	 * @param string $label        Salary label read from the database ('' when NULL)
+	 * @param string $notation     Notation being imported
 	 * @return string STATUS_IMPORTED, STATUS_CONFLICT, or '' when the row does not match
 	 */
-	public function classifySalaryMatch($ref, $label, $notation)
+	public function classifySalaryMatch($refMatches, $labelMatches, $ref, $label, $notation)
 	{
-		$refMatches = (strcasecmp($ref, $notation) === 0);
-		$labelMatches = (strcasecmp($label, $notation) === 0);
-		$labelIsPrefixed = (strncasecmp($label, $notation.' ', mb_strlen($notation) + 1) === 0);
+		// strlen and not mb_strlen: strncasecmp counts bytes, so the length must be in bytes too,
+		// otherwise a multibyte notation compares short and the trailing space is never checked.
+		$labelIsPrefixed = (strncasecmp($label, $notation.' ', strlen($notation) + 1) === 0);
 
 		if ($refMatches) {
-			// Written by this module when the label also carries the notation, otherwise the ref
-			// belongs to some other salary and the value is simply unusable.
-			return ($labelMatches || $labelIsPrefixed) ? self::STATUS_IMPORTED : self::STATUS_CONFLICT;
+			if ($labelMatches || $labelIsPrefixed) {
+				return self::STATUS_IMPORTED; // current shape: notation in both columns
+			}
+
+			// The label carries no trace of the notation. Ours anyway, but it may be a 2.2.0 counter
+			// pointing at a different salary, and skipping that one would drop a real payroll entry.
+			return ctype_digit($notation) ? self::STATUS_CONFLICT : self::STATUS_IMPORTED;
 		}
 
 		if ($labelMatches) {
-			// 2.2.0 shape: bare notation as label, counter as ref. A salary created from the
-			// Dolibarr UI has no ref at all, so an empty ref means we cannot claim this row.
+			// 2.2.0 shape: bare notation as label, counter as ref. A salary created from the Dolibarr
+			// UI carries no ref at all, so an empty ref means this row is not one of our imports and
+			// must never be skipped, however tempting the matching label looks.
 			return ($ref !== '') ? self::STATUS_IMPORTED : self::STATUS_CONFLICT;
 		}
 
@@ -578,8 +626,9 @@ class SalaryImportPersister
 				return $result;
 			}
 		}
-		if (isset($knownExisting[$notation])) {
-			$this->errors[] = ($knownExisting[$notation] === self::STATUS_CONFLICT)
+		$status = $this->statusForNotation($knownExisting, $notation);
+		if ($status !== '') {
+			$this->errors[] = ($status === self::STATUS_CONFLICT)
 				? $langs->trans('ErrorSalaryRefConflict', $notation)
 				: $langs->trans('ErrorSalaryAlreadyImported', $notation);
 			return $result;

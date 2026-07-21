@@ -95,6 +95,77 @@ class SalaryImportPersisterTest extends CommonClassTest
 	}
 
 	/**
+	 * Test classifySalaryMatch on every shape a llx_salary row can take
+	 *
+	 * @return void
+	 */
+	public function testClassifySalaryMatchOnEveryRowShape()
+	{
+		$imported = SalaryImportPersister::STATUS_IMPORTED;
+		$conflict = SalaryImportPersister::STATUS_CONFLICT;
+
+		// Current shape: notation in both columns
+		$this->assertEquals($imported, $this->persister->classifySalaryMatch(true, false, '2026-05-5', '2026-05-5 Salaire mai', '2026-05-5'));
+		// Current shape whose label was edited afterwards on the salary card
+		$this->assertEquals($imported, $this->persister->classifySalaryMatch(true, false, '2026-05-5', 'Salaire mai', '2026-05-5'));
+		// 2.2.0 shape: counter as ref, bare notation as label
+		$this->assertEquals($imported, $this->persister->classifySalaryMatch(false, true, '12', '2026-05-5', '2026-05-5'));
+		// An old counter ref that happens to look like a numeric notation: another salary entirely
+		$this->assertEquals($conflict, $this->persister->classifySalaryMatch(true, false, '12', '2026-05-5', '12'));
+		// A salary created from the Dolibarr UI (no ref) whose label was typed to match
+		$this->assertEquals($conflict, $this->persister->classifySalaryMatch(false, true, '', '2026-05-5', '2026-05-5'));
+		// No match at all
+		$this->assertEquals('', $this->persister->classifySalaryMatch(false, false, '99', 'autre', '2026-05-5'));
+	}
+
+	/**
+	 * Test classifySalaryMatch handles a multibyte notation
+	 *
+	 * strncasecmp counts bytes, so a character-based length would compare short and wrongly treat
+	 * an unrelated label as prefixed.
+	 *
+	 * @return void
+	 */
+	public function testClassifySalaryMatchWithMultibyteNotation()
+	{
+		$this->assertEquals(
+			SalaryImportPersister::STATUS_IMPORTED,
+			$this->persister->classifySalaryMatch(true, false, 'Müller-2026', 'Müller-2026 Salaire', 'Müller-2026')
+		);
+	}
+
+	/**
+	 * Test statusForNotation reads a status back out of the lookup result
+	 *
+	 * @return void
+	 */
+	public function testStatusForNotation()
+	{
+		$existing = array(
+			array('notation' => '2026-05-5', 'status' => SalaryImportPersister::STATUS_IMPORTED),
+			array('notation' => '2026', 'status' => SalaryImportPersister::STATUS_CONFLICT)
+		);
+
+		$this->assertEquals(SalaryImportPersister::STATUS_IMPORTED, $this->persister->statusForNotation($existing, '2026-05-5'));
+		// Numeric notation: must still match after PHP's array-key coercion elsewhere
+		$this->assertEquals(SalaryImportPersister::STATUS_CONFLICT, $this->persister->statusForNotation($existing, '2026'));
+		$this->assertEquals(SalaryImportPersister::STATUS_CONFLICT, $this->persister->statusForNotation($existing, 2026));
+		$this->assertEquals('', $this->persister->statusForNotation($existing, 'unknown'));
+		$this->assertEquals('', $this->persister->statusForNotation(array(), '2026-05-5'));
+	}
+
+	/**
+	 * Test normalizeNotations casts and deduplicates
+	 *
+	 * @return void
+	 */
+	public function testNormalizeNotations()
+	{
+		$this->assertEquals(array('2026', '2026-05-5'), $this->persister->normalizeNotations(array(2026, '2026', '2026-05-5', '')));
+		$this->assertEquals(array(), $this->persister->normalizeNotations(array()));
+	}
+
+	/**
 	 * Test buildSalaryLabel prefixes the imported label with the notation
 	 *
 	 * @return void

@@ -299,8 +299,9 @@ class SalaryImportService
 			// imported. Only salaries we created before can be skipped.
 			$skippable = array();
 			$conflicts = array();
-			foreach ($alreadyImported as $notation => $status) {
-				if ($status === SalaryImportPersister::STATUS_CONFLICT) {
+			foreach ($alreadyImported as $entry) {
+				$notation = (string) $entry['notation'];
+				if ($entry['status'] === SalaryImportPersister::STATUS_CONFLICT) {
 					$conflicts[] = $notation;
 				} else {
 					$skippable[] = $notation;
