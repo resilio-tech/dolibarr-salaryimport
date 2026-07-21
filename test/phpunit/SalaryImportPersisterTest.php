@@ -112,8 +112,9 @@ class SalaryImportPersisterTest extends CommonClassTest
 		$this->assertEquals($imported, $this->persister->classifySalaryMatch(false, true, '12', '2026-05-5', '2026-05-5'));
 		// An old counter ref that happens to look like a numeric notation: another salary entirely
 		$this->assertEquals($conflict, $this->persister->classifySalaryMatch(true, false, '12', '2026-05-5', '12'));
-		// A salary created from the Dolibarr UI (no ref) whose label was typed to match
-		$this->assertEquals($conflict, $this->persister->classifySalaryMatch(false, true, '', '2026-05-5', '2026-05-5'));
+		// A salary created from the Dolibarr UI (no ref) whose label was typed to match: its ref is
+		// NULL, so the notation is still free and this is not a duplicate at all
+		$this->assertEquals('', $this->persister->classifySalaryMatch(false, true, '', '2026-05-5', '2026-05-5'));
 		// No match at all
 		$this->assertEquals('', $this->persister->classifySalaryMatch(false, false, '99', 'autre', '2026-05-5'));
 	}

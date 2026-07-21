@@ -574,7 +574,7 @@ class SalaryImportPersisterTest extends TestCase
 			$methodBody,
 			'Only a numeric notation can collide with an old counter ref'
 		);
-		$this->assertStringContainsString("(\$ref !== '') ? self::STATUS_IMPORTED : self::STATUS_CONFLICT", $methodBody, 'A label-only match needs a ref to be claimed as a 2.2.0 import');
+		$this->assertStringContainsString("(\$ref !== '') ? self::STATUS_IMPORTED : ''", $methodBody, 'A label-only match on a ref-less salary leaves the notation free');
 		$this->assertStringContainsString('strlen($notation) + 1', $methodBody, 'strncasecmp counts bytes, so the length must be in bytes');
 		$this->assertStringNotContainsString('mb_strlen($notation) + 1', $methodBody, 'A character length would compare short on a multibyte notation');
 	}

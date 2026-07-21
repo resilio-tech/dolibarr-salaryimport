@@ -6,7 +6,7 @@
  * The class is named SalaryImportServiceUnitTest so it does not collide with the Dolibarr-backed
  * SalaryImportServiceTest in test/phpunit/.
  *
- * Run with: phpunit htdocs/custom/salaryimport/test/phpunit/unit/
+ * Run with: phpunit htdocs/custom/salaryimport/test/phpunit/unit/SalaryImportServiceUnitTest.php
  */
 
 use PHPUnit\Framework\TestCase;

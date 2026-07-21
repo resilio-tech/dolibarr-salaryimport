@@ -35,6 +35,7 @@ class LangsMock
 		'ErrorEmptySalaryNotation' => 'Notation de salaire vide à la ligne %s',
 		'ErrorSalaryNotationTooLong' => 'Notation de salaire trop longue (%s caractères maximum) à la ligne %s',
 		'ErrorEmptyPaymentRef' => 'Référence de paiement vide à la ligne %s',
+		'ErrorPaymentRefTooLong' => 'Référence de paiement trop longue (%s caractères maximum) à la ligne %s',
 		'ErrorEmptyFirstnameOrLastname' => 'Prénom ou nom vide à la ligne %s',
 		'ErrorEmptyPaymentDate' => 'Date de paiement vide à la ligne %s',
 		'ErrorInvalidPaymentDate' => 'Date de paiement (%s) invalide à la ligne %s',

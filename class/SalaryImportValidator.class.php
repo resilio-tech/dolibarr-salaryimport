@@ -47,6 +47,13 @@ class SalaryImportValidator
 	const LABEL_MAX_LENGTH = 255;
 
 	/**
+	 * Maximum length of a payment reference.
+	 *
+	 * It is persisted as llx_payment_salary.num_payment, a varchar(50).
+	 */
+	const PAYMENT_REF_MAX_LENGTH = 50;
+
+	/**
 	 * @var array Error messages
 	 */
 	public $errors = array();
@@ -228,6 +235,8 @@ class SalaryImportValidator
 		$paymentRef = isset($line['Réf paiement']) ? trim((string) $line['Réf paiement']) : '';
 		if ($paymentRef === '') {
 			$rowErrors[] = $langs->trans('ErrorEmptyPaymentRef', $rowNum);
+		} elseif (mb_strlen($paymentRef) > self::PAYMENT_REF_MAX_LENGTH) {
+			$rowErrors[] = $langs->trans('ErrorPaymentRefTooLong', self::PAYMENT_REF_MAX_LENGTH, $rowNum);
 		} else {
 			$validated['payment_ref'] = $paymentRef;
 		}

@@ -289,10 +289,11 @@ class SalaryImportPersister
 		}
 
 		if ($labelMatches) {
-			// 2.2.0 shape: bare notation as label, counter as ref. A salary created from the Dolibarr
-			// UI carries no ref at all, so an empty ref means this row is not one of our imports and
-			// must never be skipped, however tempting the matching label looks.
-			return ($ref !== '') ? self::STATUS_IMPORTED : self::STATUS_CONFLICT;
+			// 2.2.0 shape: bare notation as label, counter as ref. Every release of this module has
+			// written a ref, and Dolibarr itself never writes one, so an empty ref means the row was
+			// created from the UI and merely happens to be labelled like the notation. Its ref is
+			// NULL, so the notation is still free: not our import, and not a duplicate either.
+			return ($ref !== '') ? self::STATUS_IMPORTED : '';
 		}
 
 		return '';
@@ -587,8 +588,10 @@ class SalaryImportPersister
 	 * label), then for each line of the group a bank transaction + a payment_salary + the bank
 	 * links. The PDF, if any, is moved once.
 	 *
-	 * @param string $notation Salary notation shared by every row (e.g. "2026-05-5")
-	 * @param array  $rows     Enriched rows of the group from SalaryImportUserLookup
+	 * @param string $notation      Salary notation shared by every row (e.g. "2026-05-5")
+	 * @param array  $rows          Enriched rows of the group from SalaryImportUserLookup
+	 * @param array  $knownExisting Result of findExistingSalaryRefs() for the whole batch, to avoid
+	 *                              one lookup per group; null to let this method run its own
 	 * @return array Result with 'salaryId', 'salaryRef', 'notation' and 'payments', or empty on error
 	 */
 	public function persistGroup($notation, $rows, $knownExisting = null)
@@ -825,8 +828,9 @@ class SalaryImportPersister
 			$groups[$notation][] = $data;
 		}
 
-		// One lookup for the whole batch: the per-group query would otherwise scan llx_salary once
-		// per notation, on a label column that carries no index.
+		// One lookup for the whole batch, so the persist loop makes a single round-trip instead of
+		// one query per group. (The scan count is unchanged: matching on the unindexed label column
+		// costs one scan per notation either way.)
 		$existing = $this->findExistingSalaryRefs(array_keys($groups));
 		if ($existing === null) {
 			return $results; // empty: the duplicate guard is not optional
