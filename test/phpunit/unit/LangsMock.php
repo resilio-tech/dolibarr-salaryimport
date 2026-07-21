@@ -58,6 +58,7 @@ class LangsMock
 		'ErrorSalaryAlreadyImported' => 'Le salaire %s a déjà été importé (un salaire avec cette référence existe déjà)',
 		'ErrorAllSalariesAlreadyImported' => "Tous les salaires de ce fichier sont déjà importés : il n'y a plus rien à importer",
 		'WarningSalaryAlreadyImportedSkipped' => 'Salaire %s déjà importé : ignoré',
+		'ErrorSalaryRefConflict' => "La référence %s est déjà utilisée par un salaire que cet import n'a pas créé : à résoudre manuellement avant d'importer",
 
 		// Lookup errors
 		'ErrorUserNotFound' => 'User not found at row %s',

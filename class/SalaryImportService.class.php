@@ -294,8 +294,28 @@ class SalaryImportService
 			return -3;
 		}
 		if (!empty($alreadyImported)) {
+			// A conflict is never skippable: the value is held by a salary this import did not
+			// create, so dropping those rows would silently lose a payroll entry that was never
+			// imported. Only salaries we created before can be skipped.
+			$skippable = array();
+			$conflicts = array();
+			foreach ($alreadyImported as $notation => $status) {
+				if ($status === SalaryImportPersister::STATUS_CONFLICT) {
+					$conflicts[] = $notation;
+				} else {
+					$skippable[] = $notation;
+				}
+			}
+
+			if (!empty($conflicts)) {
+				foreach ($conflicts as $notation) {
+					$this->errors[] = $langs->trans('ErrorSalaryRefConflict', $notation);
+				}
+				return -3;
+			}
+
 			if (empty($skipExisting)) {
-				foreach ($alreadyImported as $notation) {
+				foreach ($skippable as $notation) {
 					$this->errors[] = $langs->trans('ErrorSalaryAlreadyImported', $notation);
 				}
 				return -3;
@@ -308,12 +328,12 @@ class SalaryImportService
 			$kept = array();
 			foreach ($validatedRows as $index => $row) {
 				$notation = isset($row['salary_notation']) ? (string) $row['salary_notation'] : '';
-				if ($notation !== '' && in_array($notation, $alreadyImported, true)) {
+				if ($notation !== '' && in_array($notation, $skippable, true)) {
 					continue;
 				}
 				$kept[$index] = $row;
 			}
-			foreach ($alreadyImported as $notation) {
+			foreach ($skippable as $notation) {
 				$this->warnings[] = $langs->trans('WarningSalaryAlreadyImportedSkipped', $notation);
 			}
 			$validatedRows = $kept;

@@ -3,7 +3,10 @@
  * Standalone unit tests for SalaryImportService
  * Verifies the source of the preview flow, which cannot be instantiated without Dolibarr
  *
- * Run with: phpunit htdocs/custom/salaryimport/test/phpunit/unit/SalaryImportServiceTest.php
+ * The class is named SalaryImportServiceUnitTest so it does not collide with the Dolibarr-backed
+ * SalaryImportServiceTest in test/phpunit/.
+ *
+ * Run with: phpunit htdocs/custom/salaryimport/test/phpunit/unit/
  */
 
 use PHPUnit\Framework\TestCase;
@@ -43,6 +46,28 @@ class SalaryImportServiceUnitTest extends TestCase
 		$this->assertStringContainsString('findExistingSalaryRefs($notations)', $body, 'The preview should look for already imported salaries');
 		$this->assertStringContainsString('if (empty($skipExisting)) {', $body, 'Refusing should be the default');
 		$this->assertStringContainsString('ErrorSalaryAlreadyImported', $body, 'Each already imported salary should be reported');
+	}
+
+	/**
+	 * Verify a notation held by a salary this import did not create is never skipped.
+	 *
+	 * Skipping it would drop a payroll entry that was never imported, and the run would still be
+	 * reported as a success.
+	 */
+	public function testConflictsAreRefusedEvenWhenSkippingIsRequested()
+	{
+		$body = $this->getProcessForPreviewBody();
+
+		$this->assertStringContainsString('SalaryImportPersister::STATUS_CONFLICT', $body, 'Hits should be classified');
+		$this->assertStringContainsString('ErrorSalaryRefConflict', $body, 'A conflict should be reported as an error');
+
+		$conflictReturn = strpos($body, 'ErrorSalaryRefConflict');
+		$skipBranch = strpos($body, 'if (empty($skipExisting)) {');
+		$this->assertNotFalse($conflictReturn, 'Should find the conflict branch');
+		$this->assertNotFalse($skipBranch, 'Should find the skip branch');
+		$this->assertLessThan($skipBranch, $conflictReturn, 'Conflicts should be refused before the skip option is honoured');
+
+		$this->assertStringContainsString('in_array($notation, $skippable, true)', $body, 'Only skippable notations should be dropped');
 	}
 
 	/**

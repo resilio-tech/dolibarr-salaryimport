@@ -157,6 +157,7 @@ ErrorGroupTotalMismatch = Salary %s total differs across rows %s
 ErrorGroupSumMismatch = Salary %s (rows %s): the sum of CHF payments (%s) does not match the declared total (%s)
 ErrorSalaryAlreadyImported = Salary %s has already been imported (a salary with this reference already exists)
 ErrorAllSalariesAlreadyImported = Every salary in this file has already been imported: nothing left to import
+ErrorSalaryRefConflict = Reference %s is already used by a salary this import did not create: resolve it manually before importing
 WarningSalaryAlreadyImportedSkipped = Salary %s already imported: skipped
 
 # Lookup errors

@@ -38,6 +38,17 @@ class SalaryImportPersister
 	const LABEL_MAX_LENGTH = 255;
 
 	/**
+	 * A salary carrying this notation was created by a previous run of this import.
+	 */
+	const STATUS_IMPORTED = 'imported';
+
+	/**
+	 * The notation is taken by a salary this import did not create, so it can be neither imported
+	 * nor silently skipped.
+	 */
+	const STATUS_CONFLICT = 'conflict';
+
+	/**
 	 * Maximum length of a salary ref, matching llx_salary.ref declared varchar(30).
 	 *
 	 * Kept in sync with SalaryImportValidator::NOTATION_MAX_LENGTH, which rejects an oversized
@@ -122,21 +133,24 @@ class SalaryImportPersister
 	}
 
 	/**
-	 * Find, among the given salary notations, those already imported in this entity.
+	 * Find, among the given salary notations, those that already exist in this entity, and say why.
 	 *
-	 * A notation identifies one salary, so re-importing it would create a duplicate. Callers use
-	 * this both to warn before the confirmation step and to guard the insert itself.
+	 * A notation identifies one salary, so re-importing it would create a duplicate. The lookup
+	 * matches the ref, but also a label equal to the notation: salaries imported by 2.2.0 were
+	 * stored with a counter as ref and the bare notation as label. Salaries imported before 2.2.0
+	 * stored no notation at all and cannot be detected.
 	 *
-	 * The lookup matches the ref, but also a label strictly equal to the notation: salaries imported
-	 * by 2.2.0 were stored with a counter as ref and the bare notation as label, and would otherwise
-	 * be invisible here (re-importing a file is precisely what people do when they suspect an import
-	 * failed). Salaries imported before 2.2.0 stored no notation at all and cannot be detected.
+	 * Each hit is classified, because the two cases must not be treated alike:
 	 *
-	 * A ref matching a notation is reported even when it belongs to a legacy salary that merely got
-	 * that number from the old counter: the uk_salary_ref index makes the value unusable either way.
+	 *  - STATUS_IMPORTED: the salary was created by this module for that notation. Skipping it on
+	 *    re-import is safe, it is already in the database.
+	 *  - STATUS_CONFLICT: the value is taken by a salary this import did not create, typically an
+	 *    old counter ref that happens to look like the notation, or a hand-typed label. Importing
+	 *    is impossible (uk_salary_ref) but skipping would silently drop a payroll entry that was
+	 *    never imported, so this always has to be raised to the user.
 	 *
 	 * @param array $notations Salary notations to look for
-	 * @return array|null Notations already present in llx_salary, or null on database error
+	 * @return array|null Map of notation => STATUS_*, empty if none exists, null on database error
 	 */
 	public function findExistingSalaryRefs($notations)
 	{
@@ -178,25 +192,62 @@ class SalaryImportPersister
 			return null;
 		}
 
-		// Report the notation the caller asked about, which is the ref for a current import and the
-		// label for a legacy one. The comparison is case-insensitive to mirror the _ci collation the
-		// IN clauses above run under: a strict comparison here would drop rows the database matched
-		// and let a duplicate through.
+		// Classify each hit against the notation the caller asked about. Comparisons are
+		// case-insensitive to mirror the _ci collation the IN clauses above run under: a strict
+		// comparison here would drop rows the database matched and let a duplicate through.
 		$existing = array();
 		while ($obj = $this->db->fetch_object($result)) {
-			foreach (array($obj->ref, $obj->label) as $candidate) {
-				if ($candidate === null) {
+			$ref = ($obj->ref === null) ? '' : (string) $obj->ref;
+			$label = ($obj->label === null) ? '' : (string) $obj->label;
+
+			foreach ($wanted as $notation) {
+				$status = $this->classifySalaryMatch($ref, $label, $notation);
+				if ($status === '') {
 					continue;
 				}
-				foreach ($wanted as $notation) {
-					if (strcasecmp((string) $candidate, $notation) === 0 && !in_array($notation, $existing, true)) {
-						$existing[] = $notation;
-					}
+				// A conflict outranks an import: if any row makes the value unusable, say so.
+				if (!isset($existing[$notation]) || $status === self::STATUS_CONFLICT) {
+					$existing[$notation] = $status;
 				}
 			}
 		}
 
 		return $existing;
+	}
+
+	/**
+	 * Decide what an existing salary row means for a notation we are about to import.
+	 *
+	 * Salaries created by this module always carry the notation in both columns: the ref is the
+	 * notation and the label is the notation, alone or followed by the imported label. The 2.2.0
+	 * releases wrote a counter as ref and the bare notation as label. Anything else that merely
+	 * happens to hold the value (an old counter ref that looks like the notation, a label typed by
+	 * hand in the Dolibarr UI) is a conflict, not one of our imports.
+	 *
+	 * @param string $ref      Salary ref read from the database ('' when NULL)
+	 * @param string $label    Salary label read from the database ('' when NULL)
+	 * @param string $notation Notation being imported
+	 * @return string STATUS_IMPORTED, STATUS_CONFLICT, or '' when the row does not match
+	 */
+	public function classifySalaryMatch($ref, $label, $notation)
+	{
+		$refMatches = (strcasecmp($ref, $notation) === 0);
+		$labelMatches = (strcasecmp($label, $notation) === 0);
+		$labelIsPrefixed = (strncasecmp($label, $notation.' ', mb_strlen($notation) + 1) === 0);
+
+		if ($refMatches) {
+			// Written by this module when the label also carries the notation, otherwise the ref
+			// belongs to some other salary and the value is simply unusable.
+			return ($labelMatches || $labelIsPrefixed) ? self::STATUS_IMPORTED : self::STATUS_CONFLICT;
+		}
+
+		if ($labelMatches) {
+			// 2.2.0 shape: bare notation as label, counter as ref. A salary created from the
+			// Dolibarr UI has no ref at all, so an empty ref means we cannot claim this row.
+			return ($ref !== '') ? self::STATUS_IMPORTED : self::STATUS_CONFLICT;
+		}
+
+		return '';
 	}
 
 	/**
@@ -492,7 +543,7 @@ class SalaryImportPersister
 	 * @param array  $rows     Enriched rows of the group from SalaryImportUserLookup
 	 * @return array Result with 'salaryId', 'salaryRef', 'notation' and 'payments', or empty on error
 	 */
-	public function persistGroup($notation, $rows)
+	public function persistGroup($notation, $rows, $knownExisting = null)
 	{
 		global $langs;
 
@@ -519,12 +570,18 @@ class SalaryImportPersister
 
 		// The notation becomes the salary ref, so it must not already exist. Checked here (and not
 		// only at preview time) because the confirmation form can be replayed after a first import.
-		$existing = $this->findExistingSalaryRefs(array($notation));
-		if ($existing === null) {
-			return $result;
+		// persistAll passes the whole batch it already looked up, so this costs no extra query; a
+		// direct caller gets its own lookup.
+		if ($knownExisting === null) {
+			$knownExisting = $this->findExistingSalaryRefs(array($notation));
+			if ($knownExisting === null) {
+				return $result;
+			}
 		}
-		if (!empty($existing)) {
-			$this->errors[] = $langs->trans('ErrorSalaryAlreadyImported', $notation);
+		if (isset($knownExisting[$notation])) {
+			$this->errors[] = ($knownExisting[$notation] === self::STATUS_CONFLICT)
+				? $langs->trans('ErrorSalaryRefConflict', $notation)
+				: $langs->trans('ErrorSalaryAlreadyImported', $notation);
 			return $result;
 		}
 
@@ -719,10 +776,17 @@ class SalaryImportPersister
 			$groups[$notation][] = $data;
 		}
 
+		// One lookup for the whole batch: the per-group query would otherwise scan llx_salary once
+		// per notation, on a label column that carries no index.
+		$existing = $this->findExistingSalaryRefs(array_keys($groups));
+		if ($existing === null) {
+			return $results; // empty: the duplicate guard is not optional
+		}
+
 		foreach ($groups as $notation => $rows) {
 			// PHP turns a decimal-integer-like array key into an int, so a notation such as "2026"
 			// would otherwise reach persistGroup (and the database) as an int.
-			$result = $this->persistGroup((string) $notation, $rows);
+			$result = $this->persistGroup((string) $notation, $rows, $existing);
 
 			if (empty($result)) {
 				$groupErrors[] = $langs->trans('ErrorPersistGroup', $notation, implode(', ', $this->errors));

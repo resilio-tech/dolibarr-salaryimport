@@ -552,6 +552,45 @@ class SalaryImportPersisterTest extends TestCase
 	}
 
 	/**
+	 * Verify classifySalaryMatch tells our own imports apart from a value merely held by another
+	 * salary, since only the former may be silently skipped on re-import
+	 */
+	public function testClassifySalaryMatchDistinguishesImportsFromConflicts()
+	{
+		$sourceFile = dirname(__FILE__).'/../../../class/SalaryImportPersister.class.php';
+		$source = file_get_contents($sourceFile);
+
+		$pattern = '/function classifySalaryMatch\([^)]*\)\s*\{([\s\S]+?)\n\t\}/';
+		$this->assertMatchesRegularExpression($pattern, $source, 'Should find classifySalaryMatch method');
+
+		preg_match($pattern, $source, $matches);
+		$methodBody = $matches[1];
+
+		$this->assertStringContainsString('self::STATUS_IMPORTED', $methodBody, 'Should report our own imports');
+		$this->assertStringContainsString('self::STATUS_CONFLICT', $methodBody, 'Should report values held by other salaries');
+		$this->assertStringContainsString('$labelMatches || $labelIsPrefixed', $methodBody, 'A ref match is ours only when the label carries the notation too');
+		$this->assertStringContainsString("(\$ref !== '') ? self::STATUS_IMPORTED : self::STATUS_CONFLICT", $methodBody, 'A label-only match needs a ref to be claimed as a 2.2.0 import');
+	}
+
+	/**
+	 * Verify persistAll looks the whole batch up once instead of scanning llx_salary per group
+	 */
+	public function testPersistAllLooksUpExistingSalariesOnce()
+	{
+		$sourceFile = dirname(__FILE__).'/../../../class/SalaryImportPersister.class.php';
+		$source = file_get_contents($sourceFile);
+
+		$pattern = '/function persistAll\([^)]*\)\s*\{([\s\S]+?)\n\t\}/';
+		$this->assertMatchesRegularExpression($pattern, $source, 'Should find persistAll method');
+
+		preg_match($pattern, $source, $matches);
+		$methodBody = $matches[1];
+
+		$this->assertStringContainsString('findExistingSalaryRefs(array_keys($groups))', $methodBody, 'The lookup should be batched');
+		$this->assertStringContainsString('persistGroup((string) $notation, $rows, $existing)', $methodBody, 'The batch result should be handed to persistGroup');
+	}
+
+	/**
 	 * Verify findExistingSalaryRefs also matches the label, so salaries imported before the notation
 	 * became the ref (counter as ref, bare notation as label) are still detected as duplicates
 	 */
