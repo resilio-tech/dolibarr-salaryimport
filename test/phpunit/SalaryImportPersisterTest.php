@@ -126,6 +126,22 @@ class SalaryImportPersisterTest extends CommonClassTest
 			'2026-05-5 Salaire mai',
 			$this->persister->buildSalaryLabel('2026-05-5', '2026-05-5 Salaire mai')
 		);
+		$this->assertEquals('2026-05-5', $this->persister->buildSalaryLabel('2026-05-5', '2026-05-5'));
+	}
+
+	/**
+	 * Test buildSalaryLabel still prefixes a label starting with a longer notation
+	 *
+	 * "2026-05-50" starts with "2026-05-5" but is a different notation, so the prefix is required.
+	 *
+	 * @return void
+	 */
+	public function testBuildSalaryLabelPrefixesWhenNotationIsOnlyAPartialMatch()
+	{
+		$this->assertEquals(
+			'2026-05-5 2026-05-50 Salaire mai',
+			$this->persister->buildSalaryLabel('2026-05-5', '2026-05-50 Salaire mai')
+		);
 	}
 
 	/**

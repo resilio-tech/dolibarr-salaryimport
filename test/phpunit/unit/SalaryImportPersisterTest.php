@@ -393,6 +393,8 @@ class SalaryImportPersisterTest extends TestCase
 		$source = file_get_contents($sourceFile);
 
 		$pattern = '/function persistGroup\([^)]*\)\s*\{([\s\S]+?)\n\t\}/';
+		$this->assertMatchesRegularExpression($pattern, $source, 'Should find persistGroup method');
+
 		preg_match($pattern, $source, $matches);
 		$methodBody = $matches[1];
 
@@ -423,7 +425,11 @@ class SalaryImportPersisterTest extends TestCase
 		$methodBody = $matches[1];
 
 		$this->assertStringContainsString("return \$notation;", $methodBody, 'An empty label should degrade to the notation');
-		$this->assertStringContainsString('strpos($label, $notation) === 0', $methodBody, 'An already prefixed label should not be prefixed twice');
+		$this->assertStringContainsString(
+			"strpos(\$label, \$notation.' ') === 0",
+			$methodBody,
+			'An already prefixed label should not be prefixed twice, and the notation must be matched as a whole'
+		);
 	}
 
 	/**
@@ -447,6 +453,8 @@ class SalaryImportPersisterTest extends TestCase
 		$source = file_get_contents($sourceFile);
 
 		$pattern = '/function persistGroup\([^)]*\)\s*\{([\s\S]+?)\n\t\}/';
+		$this->assertMatchesRegularExpression($pattern, $source, 'Should find persistGroup method');
+
 		preg_match($pattern, $source, $matches);
 		$methodBody = $matches[1];
 

@@ -129,7 +129,9 @@ class SalaryImportPersister
 			$quoted[] = "'".$this->db->escape($notation)."'";
 		}
 
-		$sql = "SELECT ref FROM ".MAIN_DB_PREFIX."salary";
+		// DISTINCT: llx_salary.ref carries no unique constraint, so the same ref can already appear
+		// several times and would otherwise be reported once per occurrence.
+		$sql = "SELECT DISTINCT ref FROM ".MAIN_DB_PREFIX."salary";
 		$sql .= " WHERE entity = ".intval($this->conf->entity);
 		$sql .= " AND ref IN (".implode(', ', $quoted).")";
 
@@ -400,8 +402,10 @@ class SalaryImportPersister
 	 *
 	 * Dolibarr does not display llx_salary.ref (Salary::fetch() replaces it with the rowid), so the
 	 * notation has to live in the label to stay visible on the card and searchable in the list.
-	 * An empty imported label degrades to the notation alone, and a label already starting with the
-	 * notation is left untouched so re-imported data is not prefixed twice.
+	 * An empty imported label degrades to the notation alone, and a label already prefixed with the
+	 * notation is left untouched so re-imported data is not prefixed twice. "Already prefixed" means
+	 * the whole notation followed by a space (or nothing), so notation "2026-05-5" is still prefixed
+	 * onto a label starting with "2026-05-50".
 	 *
 	 * @param string $notation Salary notation (e.g. "2026-05-5")
 	 * @param string $label    Label imported from the XLSX
@@ -415,7 +419,7 @@ class SalaryImportPersister
 		if ($label === '') {
 			return $notation;
 		}
-		if (strpos($label, $notation) === 0) {
+		if ($label === $notation || strpos($label, $notation.' ') === 0) {
 			return $label;
 		}
 
