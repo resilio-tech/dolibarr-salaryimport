@@ -29,6 +29,15 @@
 class SalaryImportValidator
 {
 	/**
+	 * Maximum length of a salary notation.
+	 *
+	 * The notation is persisted as llx_salary.ref, declared varchar(30) by Dolibarr: a longer value
+	 * would be truncated or rejected by the database depending on the SQL mode, so it is refused
+	 * here with a message pointing at the offending row.
+	 */
+	const NOTATION_MAX_LENGTH = 30;
+
+	/**
 	 * @var array Error messages
 	 */
 	public $errors = array();
@@ -200,6 +209,8 @@ class SalaryImportValidator
 		$notation = isset($line['Salaire']) ? trim((string) $line['Salaire']) : '';
 		if ($notation === '') {
 			$rowErrors[] = $langs->trans('ErrorEmptySalaryNotation', $rowNum);
+		} elseif (mb_strlen($notation) > self::NOTATION_MAX_LENGTH) {
+			$rowErrors[] = $langs->trans('ErrorSalaryNotationTooLong', self::NOTATION_MAX_LENGTH, $rowNum);
 		} else {
 			$validated['salary_notation'] = $notation;
 		}

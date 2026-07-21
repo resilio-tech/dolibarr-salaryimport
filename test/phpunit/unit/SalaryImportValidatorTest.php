@@ -325,6 +325,29 @@ class SalaryImportValidatorTest extends TestCase
 		$this->assertEquals(0.0, $result['amount_nominal']);
 	}
 
+	public function testValidateRowNotationTooLongForTheRefColumn()
+	{
+		$line = $this->getValidLine();
+		// llx_salary.ref is a varchar(30) and now holds the notation
+		$line['Salaire'] = str_repeat('a', 31);
+
+		$result = $this->validator->validateRow($line, 4);
+
+		$this->assertEmpty($result);
+		$this->assertContains('Notation de salaire trop longue (30 caractères maximum) à la ligne 4', $this->validator->errors);
+	}
+
+	public function testValidateRowNotationAtMaxLengthIsAccepted()
+	{
+		$line = $this->getValidLine();
+		$line['Salaire'] = str_repeat('a', 30);
+
+		$result = $this->validator->validateRow($line, 4);
+
+		$this->assertNotEmpty($result);
+		$this->assertEquals(str_repeat('a', 30), $result['salary_notation']);
+	}
+
 	public function testValidateRowMissingLabel()
 	{
 		$line = $this->getValidLine();

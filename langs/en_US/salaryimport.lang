@@ -129,6 +129,7 @@ ErrorParsingXlsx = Error parsing XLSX file: %s
 
 # Validation errors
 ErrorEmptySalaryNotation = Salary notation empty at row %s
+ErrorSalaryNotationTooLong = Salary notation too long (%s characters maximum) at row %s
 ErrorEmptyPaymentRef = Payment reference empty at row %s
 ErrorEmptyFirstnameOrLastname = First name or last name empty at row %s
 ErrorEmptyPaymentDate = Payment date empty at row %s

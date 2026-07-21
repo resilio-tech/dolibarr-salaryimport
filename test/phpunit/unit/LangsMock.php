@@ -33,6 +33,7 @@ class LangsMock
 
 		// Validation errors (French for validator tests)
 		'ErrorEmptySalaryNotation' => 'Notation de salaire vide à la ligne %s',
+		'ErrorSalaryNotationTooLong' => 'Notation de salaire trop longue (%s caractères maximum) à la ligne %s',
 		'ErrorEmptyPaymentRef' => 'Référence de paiement vide à la ligne %s',
 		'ErrorEmptyFirstnameOrLastname' => 'Prénom ou nom vide à la ligne %s',
 		'ErrorEmptyPaymentDate' => 'Date de paiement vide à la ligne %s',
