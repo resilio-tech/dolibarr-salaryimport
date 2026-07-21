@@ -151,6 +151,7 @@ ErrorGroupMultipleEmployees = Le salaire %s référence plusieurs employés (lig
 ErrorGroupDateMismatch = Le salaire %s a des dates différentes selon les lignes %s (un salaire doit avoir une seule date)
 ErrorGroupTotalMismatch = Le total du salaire %s diffère selon les lignes %s
 ErrorGroupSumMismatch = Le salaire %s (lignes %s) : la somme des paiements CHF (%s) ne correspond pas au total déclaré (%s)
+ErrorSalaryAlreadyImported = Le salaire %s a déjà été importé (un salaire avec cette référence existe déjà)
 
 # Lookup errors
 ErrorUserNotFound = Utilisateur non trouvé à la ligne %s
@@ -164,7 +165,7 @@ ErrorZipOpen = Impossible d'ouvrir l'archive ZIP : %s
 ErrorZipExtract = Impossible d'extraire l'archive ZIP vers : %s
 
 # Persist errors
-ErrorGetLastSalaryRef = Erreur lors de la récupération de la dernière référence de salaire : %s
+ErrorCheckSalaryRefs = Erreur lors de la vérification des références de salaire existantes : %s
 ErrorGetLastPaymentRef = Erreur lors de la récupération de la dernière référence de paiement : %s
 ErrorInsertSalary = Erreur lors de l'insertion du salaire : %s
 ErrorInsertBankTransaction = Erreur lors de l'insertion de la transaction bancaire : %s

@@ -72,16 +72,60 @@ class SalaryImportPersisterTest extends CommonClassTest
 	}
 
 	/**
-	 * Test getNextSalaryRef increments
+	 * Test findExistingSalaryRefs with no notation to look for
 	 *
 	 * @return void
 	 */
-	public function testGetNextSalaryRefIncrements()
+	public function testFindExistingSalaryRefsWithEmptyInput()
 	{
-		$ref1 = $this->persister->getNextSalaryRef();
-		$ref2 = $this->persister->getNextSalaryRef();
+		$this->assertEquals(array(), $this->persister->findExistingSalaryRefs(array()));
+	}
 
-		$this->assertEquals((int)$ref1 + 1, (int)$ref2);
+	/**
+	 * Test findExistingSalaryRefs returns nothing for notations that were never imported
+	 *
+	 * @return void
+	 */
+	public function testFindExistingSalaryRefsWithUnknownNotations()
+	{
+		$result = $this->persister->findExistingSalaryRefs(array('nonexistent-notation-1', 'nonexistent-notation-2'));
+
+		$this->assertIsArray($result);
+		$this->assertEmpty($result);
+	}
+
+	/**
+	 * Test buildSalaryLabel prefixes the imported label with the notation
+	 *
+	 * @return void
+	 */
+	public function testBuildSalaryLabelPrefixesNotation()
+	{
+		$this->assertEquals('2026-05-5 Salaire mai', $this->persister->buildSalaryLabel('2026-05-5', 'Salaire mai'));
+	}
+
+	/**
+	 * Test buildSalaryLabel falls back to the notation when no label was imported
+	 *
+	 * @return void
+	 */
+	public function testBuildSalaryLabelWithEmptyLabel()
+	{
+		$this->assertEquals('2026-05-5', $this->persister->buildSalaryLabel('2026-05-5', ''));
+		$this->assertEquals('2026-05-5', $this->persister->buildSalaryLabel('2026-05-5', '   '));
+	}
+
+	/**
+	 * Test buildSalaryLabel does not prefix a label that already starts with the notation
+	 *
+	 * @return void
+	 */
+	public function testBuildSalaryLabelDoesNotDuplicateNotation()
+	{
+		$this->assertEquals(
+			'2026-05-5 Salaire mai',
+			$this->persister->buildSalaryLabel('2026-05-5', '2026-05-5 Salaire mai')
+		);
 	}
 
 	/**

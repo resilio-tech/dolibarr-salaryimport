@@ -151,6 +151,7 @@ ErrorGroupMultipleEmployees = Salary %s references several employees (rows %s)
 ErrorGroupDateMismatch = Salary %s has different dates across rows %s (a salary must have a single date)
 ErrorGroupTotalMismatch = Salary %s total differs across rows %s
 ErrorGroupSumMismatch = Salary %s (rows %s): the sum of CHF payments (%s) does not match the declared total (%s)
+ErrorSalaryAlreadyImported = Salary %s has already been imported (a salary with this reference already exists)
 
 # Lookup errors
 ErrorUserNotFound = User not found at row %s
@@ -164,7 +165,7 @@ ErrorZipOpen = Failed to open ZIP archive: %s
 ErrorZipExtract = Failed to extract ZIP archive to: %s
 
 # Persist errors
-ErrorGetLastSalaryRef = Error getting last salary ref: %s
+ErrorCheckSalaryRefs = Error checking existing salary refs: %s
 ErrorGetLastPaymentRef = Error getting last payment ref: %s
 ErrorInsertSalary = Error inserting salary: %s
 ErrorInsertBankTransaction = Error inserting bank transaction: %s

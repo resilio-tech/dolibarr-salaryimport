@@ -57,11 +57,6 @@ class SalaryImportPersister
 	public $warnings = array();
 
 	/**
-	 * @var int Counter for salary references
-	 */
-	protected $salaryRefCounter;
-
-	/**
 	 * @var int Counter for payment references
 	 */
 	protected $paymentRefCounter;
@@ -88,23 +83,15 @@ class SalaryImportPersister
 	}
 
 	/**
-	 * Initialize reference counters by fetching last refs from database
+	 * Initialize the payment reference counter by fetching the last ref from database
+	 *
+	 * Salaries do not use a counter: their ref is the salary notation (see persistGroup).
 	 *
 	 * @return int 1 on success, <0 on error
 	 */
 	public function initCounters()
 	{
 		global $langs;
-
-		// Get last salary ref
-		$sql = "SELECT ref FROM ".MAIN_DB_PREFIX."salary ORDER BY CAST(ref AS UNSIGNED) DESC LIMIT 1";
-		$result = $this->db->query($sql);
-		if (!$result) {
-			$this->errors[] = $langs->trans('ErrorGetLastSalaryRef', $this->db->lasterror());
-			return -1;
-		}
-		$obj = $this->db->fetch_object($result);
-		$this->salaryRefCounter = $obj ? intval($obj->ref) : 0;
 
 		// Get last payment ref
 		$sql = "SELECT ref FROM ".MAIN_DB_PREFIX."payment_salary ORDER BY CAST(ref AS UNSIGNED) DESC LIMIT 1";
@@ -121,17 +108,43 @@ class SalaryImportPersister
 	}
 
 	/**
-	 * Get next salary reference
+	 * Find, among the given salary notations, those already used as a salary ref in this entity.
 	 *
-	 * @return string Next salary reference
+	 * A notation identifies one salary, so re-importing it would create a duplicate. Callers use
+	 * this both to warn before the confirmation step and to guard the insert itself.
+	 *
+	 * @param array $notations Salary notations to look for
+	 * @return array|null Notations already present in llx_salary, or null on database error
 	 */
-	public function getNextSalaryRef()
+	public function findExistingSalaryRefs($notations)
 	{
-		if (!$this->countersInitialized) {
-			$this->initCounters();
+		global $langs;
+
+		if (empty($notations)) {
+			return array();
 		}
-		$this->salaryRefCounter++;
-		return (string) $this->salaryRefCounter;
+
+		$quoted = array();
+		foreach (array_unique($notations) as $notation) {
+			$quoted[] = "'".$this->db->escape($notation)."'";
+		}
+
+		$sql = "SELECT ref FROM ".MAIN_DB_PREFIX."salary";
+		$sql .= " WHERE entity = ".intval($this->conf->entity);
+		$sql .= " AND ref IN (".implode(', ', $quoted).")";
+
+		$result = $this->db->query($sql);
+		if (!$result) {
+			$this->errors[] = $langs->trans('ErrorCheckSalaryRefs', $this->db->lasterror());
+			return null;
+		}
+
+		$existing = array();
+		while ($obj = $this->db->fetch_object($result)) {
+			$existing[] = $obj->ref;
+		}
+
+		return $existing;
 	}
 
 	/**
@@ -383,10 +396,38 @@ class SalaryImportPersister
 	}
 
 	/**
+	 * Build the label of a salary: the notation followed by the label imported from the XLSX.
+	 *
+	 * Dolibarr does not display llx_salary.ref (Salary::fetch() replaces it with the rowid), so the
+	 * notation has to live in the label to stay visible on the card and searchable in the list.
+	 * An empty imported label degrades to the notation alone, and a label already starting with the
+	 * notation is left untouched so re-imported data is not prefixed twice.
+	 *
+	 * @param string $notation Salary notation (e.g. "2026-05-5")
+	 * @param string $label    Label imported from the XLSX
+	 * @return string Label to store in llx_salary.label
+	 */
+	public function buildSalaryLabel($notation, $label)
+	{
+		$label = trim((string) $label);
+		$notation = trim((string) $notation);
+
+		if ($label === '') {
+			return $notation;
+		}
+		if (strpos($label, $notation) === 0) {
+			return $label;
+		}
+
+		return $notation.' '.$label;
+	}
+
+	/**
 	 * Persist one salary group (all rows sharing the same notation).
 	 *
-	 * Creates a single salary (amount = total CHF, label = notation), then for each line of the
-	 * group a bank transaction + a payment_salary + the bank links. The PDF, if any, is moved once.
+	 * Creates a single salary (ref = notation, amount = total CHF, label = notation + imported
+	 * label), then for each line of the group a bank transaction + a payment_salary + the bank
+	 * links. The PDF, if any, is moved once.
 	 *
 	 * @param string $notation Salary notation shared by every row (e.g. "2026-05-5")
 	 * @param array  $rows     Enriched rows of the group from SalaryImportUserLookup
@@ -394,6 +435,8 @@ class SalaryImportPersister
 	 */
 	public function persistGroup($notation, $rows)
 	{
+		global $langs;
+
 		$result = array();
 		$this->errors = array();
 
@@ -402,6 +445,17 @@ class SalaryImportPersister
 			if ($this->initCounters() < 0) {
 				return $result;
 			}
+		}
+
+		// The notation becomes the salary ref, so it must not already exist. Checked here (and not
+		// only at preview time) because the confirmation form can be replayed after a first import.
+		$existing = $this->findExistingSalaryRefs(array($notation));
+		if ($existing === null) {
+			return $result;
+		}
+		if (!empty($existing)) {
+			$this->errors[] = $langs->trans('ErrorSalaryAlreadyImported', $notation);
+			return $result;
 		}
 
 		// All inserts of a group (salary + N bank/payment/url rows) are wrapped in a single
@@ -418,16 +472,20 @@ class SalaryImportPersister
 		});
 		$first = reset($rows);
 
-		// One salary per notation: amount = total in company currency, label = notation.
-		// Date/period are the same on every row; account/type come from the first row of the
+		// One salary per notation: the notation is the ref and the amount is the total in company
+		// currency. The label is prefixed with the notation because Dolibarr never displays
+		// llx_salary.ref (Salary::fetch() overwrites it with the rowid), so the label is the only
+		// place where the notation stays visible and searchable in the salary list.
+		// Date/period are the same on every row; label/account/type come from the first row of the
 		// deterministically sorted group (they may legitimately differ between payments).
-		$salaryRef = $this->getNextSalaryRef();
+		$salaryRef = $notation;
+		$salaryLabel = $this->buildSalaryLabel($notation, $first['label']);
 		$salaryId = $this->insertSalary(
 			$salaryRef,
 			$first['datep'],
 			$first['total_salary_chf'],
 			$first['typepayment'],
-			$notation,
+			$salaryLabel,
 			$first['datesp'],
 			$first['dateep'],
 			$first['paye'],

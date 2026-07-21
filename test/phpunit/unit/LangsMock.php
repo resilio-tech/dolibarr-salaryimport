@@ -53,6 +53,7 @@ class LangsMock
 		'ErrorGroupDateMismatch' => 'Le salaire %s a des dates différentes selon les lignes %s (un salaire doit avoir une seule date)',
 		'ErrorGroupTotalMismatch' => 'Le total du salaire %s diffère selon les lignes %s',
 		'ErrorGroupSumMismatch' => 'Le salaire %s (lignes %s) : la somme des paiements CHF (%s) ne correspond pas au total déclaré (%s)',
+		'ErrorSalaryAlreadyImported' => 'Le salaire %s a déjà été importé (un salaire avec cette référence existe déjà)',
 
 		// Lookup errors
 		'ErrorUserNotFound' => 'User not found at row %s',
@@ -66,7 +67,7 @@ class LangsMock
 		'ErrorZipExtract' => 'Failed to extract ZIP archive to: %s',
 
 		// Persist errors
-		'ErrorGetLastSalaryRef' => 'Error getting last salary ref: %s',
+		'ErrorCheckSalaryRefs' => 'Error checking existing salary refs: %s',
 		'ErrorGetLastPaymentRef' => 'Error getting last payment ref: %s',
 		'ErrorInsertSalary' => 'Error inserting salary: %s',
 		'ErrorInsertBankTransaction' => 'Error inserting bank transaction: %s',

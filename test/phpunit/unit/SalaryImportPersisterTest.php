@@ -384,6 +384,99 @@ class SalaryImportPersisterTest extends TestCase
 	}
 
 	/**
+	 * Verify persistGroup uses the notation as the salary ref and the imported label as the label,
+	 * instead of an ad-hoc counter with the notation squatting the label column
+	 */
+	public function testPersistGroupUsesNotationAsRefAndImportedLabel()
+	{
+		$sourceFile = dirname(__FILE__).'/../../../class/SalaryImportPersister.class.php';
+		$source = file_get_contents($sourceFile);
+
+		$pattern = '/function persistGroup\([^)]*\)\s*\{([\s\S]+?)\n\t\}/';
+		preg_match($pattern, $source, $matches);
+		$methodBody = $matches[1];
+
+		$this->assertStringContainsString('$salaryRef = $notation;', $methodBody, 'The salary ref should be the notation');
+		$this->assertStringContainsString(
+			"buildSalaryLabel(\$notation, \$first['label'])",
+			$methodBody,
+			'The salary label should be built from the notation and the imported label'
+		);
+
+		// The insertSalary call must pass the ref then, as 5th argument, the built label
+		$callPattern = '/insertSalary\(\s*\$salaryRef,\s*\$first\[\'datep\'\],\s*\$first\[\'total_salary_chf\'\],\s*\$first\[\'typepayment\'\],\s*\$salaryLabel,/';
+		$this->assertMatchesRegularExpression($callPattern, $methodBody, 'insertSalary should receive the built label, not the bare notation');
+	}
+
+	/**
+	 * Verify buildSalaryLabel keeps the notation visible without duplicating it
+	 */
+	public function testBuildSalaryLabelHandlesEmptyAndAlreadyPrefixedLabels()
+	{
+		$sourceFile = dirname(__FILE__).'/../../../class/SalaryImportPersister.class.php';
+		$source = file_get_contents($sourceFile);
+
+		$pattern = '/function buildSalaryLabel\([^)]*\)\s*\{([\s\S]+?)\n\t\}/';
+		$this->assertMatchesRegularExpression($pattern, $source, 'Should find buildSalaryLabel method');
+
+		preg_match($pattern, $source, $matches);
+		$methodBody = $matches[1];
+
+		$this->assertStringContainsString("return \$notation;", $methodBody, 'An empty label should degrade to the notation');
+		$this->assertStringContainsString('strpos($label, $notation) === 0', $methodBody, 'An already prefixed label should not be prefixed twice');
+	}
+
+	/**
+	 * Verify the salary ref counter is gone (the notation is the ref now)
+	 */
+	public function testNoSalaryRefCounterRemains()
+	{
+		$sourceFile = dirname(__FILE__).'/../../../class/SalaryImportPersister.class.php';
+		$source = file_get_contents($sourceFile);
+
+		$this->assertStringNotContainsString('salaryRefCounter', $source, 'The salary ref counter should be removed');
+		$this->assertStringNotContainsString('getNextSalaryRef', $source, 'getNextSalaryRef should be removed');
+	}
+
+	/**
+	 * Verify persistGroup refuses a notation already used as a salary ref (replayed confirmation form)
+	 */
+	public function testPersistGroupRejectsAlreadyImportedNotation()
+	{
+		$sourceFile = dirname(__FILE__).'/../../../class/SalaryImportPersister.class.php';
+		$source = file_get_contents($sourceFile);
+
+		$pattern = '/function persistGroup\([^)]*\)\s*\{([\s\S]+?)\n\t\}/';
+		preg_match($pattern, $source, $matches);
+		$methodBody = $matches[1];
+
+		$checkPos = strpos($methodBody, 'findExistingSalaryRefs');
+		$insertPos = strpos($methodBody, 'insertSalary');
+
+		$this->assertNotFalse($checkPos, 'persistGroup should check for an existing salary ref');
+		$this->assertStringContainsString('ErrorSalaryAlreadyImported', $methodBody, 'persistGroup should report the duplicate');
+		$this->assertLessThan($insertPos, $checkPos, 'The duplicate check should happen before the insert');
+	}
+
+	/**
+	 * Verify findExistingSalaryRefs scopes its lookup to the current entity
+	 */
+	public function testFindExistingSalaryRefsIsEntityScoped()
+	{
+		$sourceFile = dirname(__FILE__).'/../../../class/SalaryImportPersister.class.php';
+		$source = file_get_contents($sourceFile);
+
+		$pattern = '/function findExistingSalaryRefs\([^)]*\)\s*\{([\s\S]+?)\n\t\}/';
+		$this->assertMatchesRegularExpression($pattern, $source, 'Should find findExistingSalaryRefs method');
+
+		preg_match($pattern, $source, $matches);
+		$methodBody = $matches[1];
+
+		$this->assertStringContainsString('$this->conf->entity', $methodBody, 'The lookup should be scoped to the current entity');
+		$this->assertStringContainsString('$this->db->escape', $methodBody, 'The notations should be escaped');
+	}
+
+	/**
 	 * Verify persistAll groups rows by salary notation (one salary per notation)
 	 */
 	public function testPersistAllGroupsByNotation()

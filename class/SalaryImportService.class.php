@@ -275,6 +275,26 @@ class SalaryImportService
 			return -3;
 		}
 
+		// Each notation becomes the ref of a salary, so refuse a file whose salaries are already in
+		// the database rather than letting the user reach the confirmation step for nothing.
+		$notations = array();
+		foreach ($validatedRows as $row) {
+			if (!empty($row['salary_notation'])) {
+				$notations[] = $row['salary_notation'];
+			}
+		}
+		$alreadyImported = $this->persister->findExistingSalaryRefs($notations);
+		if ($alreadyImported === null) {
+			$this->errors = array_merge($this->errors, $this->persister->errors);
+			return -3;
+		}
+		if (!empty($alreadyImported)) {
+			foreach ($alreadyImported as $notation) {
+				$this->errors[] = $langs->trans('ErrorSalaryAlreadyImported', $notation);
+			}
+			return -3;
+		}
+
 		// Enrich with database lookups
 		$enrichedRows = $this->userLookup->enrichAll($validatedRows);
 
