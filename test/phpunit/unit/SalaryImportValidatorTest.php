@@ -325,6 +325,53 @@ class SalaryImportValidatorTest extends TestCase
 		$this->assertEquals(0.0, $result['amount_nominal']);
 	}
 
+	public function testValidateRowNotationTooLongForTheRefColumn()
+	{
+		$line = $this->getValidLine();
+		// llx_salary.ref is a varchar(30) and now holds the notation
+		$line['Salaire'] = str_repeat('a', 31);
+
+		$result = $this->validator->validateRow($line, 4);
+
+		$this->assertEmpty($result);
+		$this->assertContains('Notation de salaire trop longue (30 caractères maximum) à la ligne 4', $this->validator->errors);
+	}
+
+	public function testValidateRowNotationAtMaxLengthIsAccepted()
+	{
+		$line = $this->getValidLine();
+		$line['Salaire'] = str_repeat('a', 30);
+
+		$result = $this->validator->validateRow($line, 4);
+
+		$this->assertNotEmpty($result);
+		$this->assertEquals(str_repeat('a', 30), $result['salary_notation']);
+	}
+
+	public function testValidateRowLabelTooLongForTheLabelColumns()
+	{
+		$line = $this->getValidLine();
+		// llx_payment_salary.label and llx_salary.label are varchar(255)
+		$line['Libellé'] = str_repeat('a', 256);
+
+		$result = $this->validator->validateRow($line, 5);
+
+		$this->assertEmpty($result);
+		$this->assertContains('Libellé trop long (255 caractères maximum) à la ligne 5', $this->validator->errors);
+	}
+
+	public function testValidateRowPaymentRefTooLongForItsColumn()
+	{
+		$line = $this->getValidLine();
+		// llx_payment_salary.num_payment is a varchar(50)
+		$line['Réf paiement'] = str_repeat('a', 51);
+
+		$result = $this->validator->validateRow($line, 3);
+
+		$this->assertEmpty($result);
+		$this->assertContains('Référence de paiement trop longue (50 caractères maximum) à la ligne 3', $this->validator->errors);
+	}
+
 	public function testValidateRowMissingLabel()
 	{
 		$line = $this->getValidLine();

@@ -33,7 +33,9 @@ class LangsMock
 
 		// Validation errors (French for validator tests)
 		'ErrorEmptySalaryNotation' => 'Notation de salaire vide à la ligne %s',
+		'ErrorSalaryNotationTooLong' => 'Notation de salaire trop longue (%s caractères maximum) à la ligne %s',
 		'ErrorEmptyPaymentRef' => 'Référence de paiement vide à la ligne %s',
+		'ErrorPaymentRefTooLong' => 'Référence de paiement trop longue (%s caractères maximum) à la ligne %s',
 		'ErrorEmptyFirstnameOrLastname' => 'Prénom ou nom vide à la ligne %s',
 		'ErrorEmptyPaymentDate' => 'Date de paiement vide à la ligne %s',
 		'ErrorInvalidPaymentDate' => 'Date de paiement (%s) invalide à la ligne %s',
@@ -41,6 +43,7 @@ class LangsMock
 		'ErrorEmptyOrInvalidAmountChf' => 'Montant CHF invalide à la ligne %s',
 		'ErrorEmptyOrInvalidTotalSalary' => 'Salaire total CHF vide ou invalide à la ligne %s',
 		'ErrorEmptyLabel' => 'Libellé vide à la ligne %s',
+		'ErrorLabelTooLong' => 'Libellé trop long (%s caractères maximum) à la ligne %s',
 		'ErrorEmptyStartDate' => 'Date de début vide à la ligne %s',
 		'ErrorInvalidStartDate' => 'Date de début (%s) invalide à la ligne %s',
 		'ErrorEmptyEndDate' => 'Date de fin vide à la ligne %s',
@@ -53,6 +56,10 @@ class LangsMock
 		'ErrorGroupDateMismatch' => 'Le salaire %s a des dates différentes selon les lignes %s (un salaire doit avoir une seule date)',
 		'ErrorGroupTotalMismatch' => 'Le total du salaire %s diffère selon les lignes %s',
 		'ErrorGroupSumMismatch' => 'Le salaire %s (lignes %s) : la somme des paiements CHF (%s) ne correspond pas au total déclaré (%s)',
+		'ErrorSalaryAlreadyImported' => 'Le salaire %s a déjà été importé (un salaire avec cette référence existe déjà)',
+		'ErrorAllSalariesAlreadyImported' => "Tous les salaires de ce fichier sont déjà importés : il n'y a plus rien à importer",
+		'WarningSalaryAlreadyImportedSkipped' => 'Salaire %s déjà importé : ignoré',
+		'ErrorSalaryRefConflict' => "La référence %s est déjà utilisée par un salaire que cet import n'a pas créé : à résoudre manuellement avant d'importer",
 
 		// Lookup errors
 		'ErrorUserNotFound' => 'User not found at row %s',
@@ -66,7 +73,7 @@ class LangsMock
 		'ErrorZipExtract' => 'Failed to extract ZIP archive to: %s',
 
 		// Persist errors
-		'ErrorGetLastSalaryRef' => 'Error getting last salary ref: %s',
+		'ErrorCheckSalaryRefs' => 'Error checking existing salary refs: %s',
 		'ErrorGetLastPaymentRef' => 'Error getting last payment ref: %s',
 		'ErrorInsertSalary' => 'Error inserting salary: %s',
 		'ErrorInsertBankTransaction' => 'Error inserting bank transaction: %s',
@@ -78,6 +85,7 @@ class LangsMock
 		'ErrorPersistRow' => 'Error persisting row %s: %s',
 		'ErrorPersistGroup' => 'Error persisting salary %s: %s',
 		'ErrorMissingSalaryNotation' => 'Missing salary notation for row %s: cannot import',
+		'ErrorSalaryRefTooLong' => "Salary notation '%s' exceeds %s characters: cannot import",
 
 		// Cleanup errors
 		'ErrorDeleteXlsx' => 'Failed to delete XLSX file',

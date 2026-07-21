@@ -54,6 +54,8 @@ SalaryImportStep3 = Import de salaires (3/3) - Confirmation
 # Form labels
 SalaryXlsxFile = Fichier XLSX des salaires
 SalaryPdfZipFile = Fichier ZIP avec les fiches de paie (optionnel)
+SkipExistingSalaries = Salaires déjà importés
+SkipExistingSalariesHelp = Les ignorer au lieu de refuser le fichier (pour terminer un import qui a échoué en cours de route)
 SelectXlsxFile = Sélectionnez un fichier Excel (.xlsx)
 SelectZipFile = Sélectionnez un fichier ZIP contenant les PDF
 
@@ -129,7 +131,9 @@ ErrorParsingXlsx = Erreur lors de l'analyse du fichier XLSX : %s
 
 # Validation errors
 ErrorEmptySalaryNotation = Notation de salaire vide à la ligne %s
+ErrorSalaryNotationTooLong = Notation de salaire trop longue (%s caractères maximum) à la ligne %s
 ErrorEmptyPaymentRef = Référence de paiement vide à la ligne %s
+ErrorPaymentRefTooLong = Référence de paiement trop longue (%s caractères maximum) à la ligne %s
 ErrorEmptyFirstnameOrLastname = Prénom ou nom vide à la ligne %s
 ErrorEmptyPaymentDate = Date de paiement vide à la ligne %s
 ErrorInvalidPaymentDate = Date de paiement (%s) invalide à la ligne %s
@@ -137,6 +141,7 @@ ErrorEmptyOrInvalidAmount = Montant payé vide ou invalide à la ligne %s
 ErrorEmptyOrInvalidAmountChf = Montant CHF invalide à la ligne %s
 ErrorEmptyOrInvalidTotalSalary = Salaire total CHF vide ou invalide à la ligne %s
 ErrorEmptyLabel = Libellé vide à la ligne %s
+ErrorLabelTooLong = Libellé trop long (%s caractères maximum) à la ligne %s
 ErrorEmptyStartDate = Date de début vide à la ligne %s
 ErrorInvalidStartDate = Date de début (%s) invalide à la ligne %s
 ErrorEmptyEndDate = Date de fin vide à la ligne %s
@@ -151,6 +156,10 @@ ErrorGroupMultipleEmployees = Le salaire %s référence plusieurs employés (lig
 ErrorGroupDateMismatch = Le salaire %s a des dates différentes selon les lignes %s (un salaire doit avoir une seule date)
 ErrorGroupTotalMismatch = Le total du salaire %s diffère selon les lignes %s
 ErrorGroupSumMismatch = Le salaire %s (lignes %s) : la somme des paiements CHF (%s) ne correspond pas au total déclaré (%s)
+ErrorSalaryAlreadyImported = Le salaire %s a déjà été importé (un salaire avec cette référence existe déjà)
+ErrorAllSalariesAlreadyImported = Tous les salaires de ce fichier sont déjà importés : il n'y a plus rien à importer
+ErrorSalaryRefConflict = La référence %s est déjà utilisée par un salaire que cet import n'a pas créé : à résoudre manuellement avant d'importer
+WarningSalaryAlreadyImportedSkipped = Salaire %s déjà importé : ignoré
 
 # Lookup errors
 ErrorUserNotFound = Utilisateur non trouvé à la ligne %s
@@ -164,7 +173,7 @@ ErrorZipOpen = Impossible d'ouvrir l'archive ZIP : %s
 ErrorZipExtract = Impossible d'extraire l'archive ZIP vers : %s
 
 # Persist errors
-ErrorGetLastSalaryRef = Erreur lors de la récupération de la dernière référence de salaire : %s
+ErrorCheckSalaryRefs = Erreur lors de la vérification des références de salaire existantes : %s
 ErrorGetLastPaymentRef = Erreur lors de la récupération de la dernière référence de paiement : %s
 ErrorInsertSalary = Erreur lors de l'insertion du salaire : %s
 ErrorInsertBankTransaction = Erreur lors de l'insertion de la transaction bancaire : %s
@@ -177,6 +186,7 @@ ErrorIndexPdf = Impossible d'indexer le fichier PDF dans la base de données
 ErrorPersistRow = Erreur lors de la persistance de la ligne %s : %s
 ErrorPersistGroup = Erreur lors de la persistance du salaire %s : %s
 ErrorMissingSalaryNotation = Notation de salaire manquante pour la ligne %s : import impossible
+ErrorSalaryRefTooLong = Notation de salaire '%s' de plus de %s caractères : import impossible
 
 # Cleanup errors
 ErrorDeleteXlsx = Impossible de supprimer le fichier XLSX

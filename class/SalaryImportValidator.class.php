@@ -29,6 +29,31 @@
 class SalaryImportValidator
 {
 	/**
+	 * Maximum length of a salary notation.
+	 *
+	 * The notation is persisted as llx_salary.ref, declared varchar(30) by Dolibarr: a longer value
+	 * would be truncated or rejected by the database depending on the SQL mode, so it is refused
+	 * here with a message pointing at the offending row.
+	 */
+	const NOTATION_MAX_LENGTH = 30;
+
+	/**
+	 * Maximum length of an imported label.
+	 *
+	 * The label is persisted as llx_payment_salary.label, a varchar(255), on every payment of the
+	 * salary. Refusing it here gives the offending row number instead of a failed INSERT halfway
+	 * through the import.
+	 */
+	const LABEL_MAX_LENGTH = 255;
+
+	/**
+	 * Maximum length of a payment reference.
+	 *
+	 * It is persisted as llx_payment_salary.num_payment, a varchar(50).
+	 */
+	const PAYMENT_REF_MAX_LENGTH = 50;
+
+	/**
 	 * @var array Error messages
 	 */
 	public $errors = array();
@@ -200,6 +225,8 @@ class SalaryImportValidator
 		$notation = isset($line['Salaire']) ? trim((string) $line['Salaire']) : '';
 		if ($notation === '') {
 			$rowErrors[] = $langs->trans('ErrorEmptySalaryNotation', $rowNum);
+		} elseif (mb_strlen($notation) > self::NOTATION_MAX_LENGTH) {
+			$rowErrors[] = $langs->trans('ErrorSalaryNotationTooLong', self::NOTATION_MAX_LENGTH, $rowNum);
 		} else {
 			$validated['salary_notation'] = $notation;
 		}
@@ -208,6 +235,8 @@ class SalaryImportValidator
 		$paymentRef = isset($line['Réf paiement']) ? trim((string) $line['Réf paiement']) : '';
 		if ($paymentRef === '') {
 			$rowErrors[] = $langs->trans('ErrorEmptyPaymentRef', $rowNum);
+		} elseif (mb_strlen($paymentRef) > self::PAYMENT_REF_MAX_LENGTH) {
+			$rowErrors[] = $langs->trans('ErrorPaymentRefTooLong', self::PAYMENT_REF_MAX_LENGTH, $rowNum);
 		} else {
 			$validated['payment_ref'] = $paymentRef;
 		}
@@ -272,9 +301,11 @@ class SalaryImportValidator
 		}
 
 		// Validate label
-		$label = isset($line['Libellé']) ? trim($line['Libellé']) : '';
-		if (empty($label)) {
+		$label = isset($line['Libellé']) ? trim((string) $line['Libellé']) : '';
+		if ($label === '') {
 			$rowErrors[] = $langs->trans('ErrorEmptyLabel', $rowNum);
+		} elseif (mb_strlen($label) > self::LABEL_MAX_LENGTH) {
+			$rowErrors[] = $langs->trans('ErrorLabelTooLong', self::LABEL_MAX_LENGTH, $rowNum);
 		} else {
 			$validated['label'] = $label;
 		}
@@ -390,7 +421,7 @@ class SalaryImportValidator
 		// Group rows by salary notation
 		$groups = array();
 		foreach ($validatedRows as $row) {
-			if (empty($row['salary_notation'])) {
+			if (!isset($row['salary_notation']) || $row['salary_notation'] === '') {
 				continue;
 			}
 			$groups[$row['salary_notation']][] = $row;

@@ -238,12 +238,15 @@ class SalaryImportService
 	/**
 	 * Process uploaded files and prepare preview data
 	 *
+	 * @param int $skipExisting 1 to drop the salaries already imported and keep going, 0 (default)
+	 *                          to refuse the whole file when any of them is already in the database
 	 * @return int 1 on success, <0 on error
 	 */
-	public function processForPreview()
+	public function processForPreview($skipExisting = 0)
 	{
 		global $langs;
 		$this->errors = array();
+		$this->warnings = array();
 		$this->previewData = array();
 
 		if (empty($this->uploadedXlsxName)) {
@@ -275,6 +278,73 @@ class SalaryImportService
 			return -3;
 		}
 
+		// Each notation becomes the ref of a salary, so refuse a file whose salaries are already in
+		// the database rather than letting the user reach the confirmation step for nothing.
+		// Compared to '' and not empty(): "0" is an unusual but legitimate notation, and dropping it
+		// here would let it slip past the check and fail later, at persist time.
+		$notations = array();
+		foreach ($validatedRows as $row) {
+			if (isset($row['salary_notation']) && $row['salary_notation'] !== '') {
+				$notations[] = $row['salary_notation'];
+			}
+		}
+		$alreadyImported = $this->persister->findExistingSalaryRefs($notations);
+		if ($alreadyImported === null) {
+			$this->errors = array_merge($this->errors, $this->persister->errors);
+			return -3;
+		}
+		if (!empty($alreadyImported)) {
+			// A conflict is never skippable: the value is held by a salary this import did not
+			// create, so dropping those rows would silently lose a payroll entry that was never
+			// imported. Only salaries we created before can be skipped.
+			$skippable = array();
+			$conflicts = array();
+			foreach ($alreadyImported as $entry) {
+				$notation = (string) $entry['notation'];
+				if ($entry['status'] === SalaryImportPersister::STATUS_CONFLICT) {
+					$conflicts[] = $notation;
+				} else {
+					$skippable[] = $notation;
+				}
+			}
+
+			if (!empty($conflicts)) {
+				foreach ($conflicts as $notation) {
+					$this->errors[] = $langs->trans('ErrorSalaryRefConflict', $notation);
+				}
+				return -3;
+			}
+
+			if (empty($skipExisting)) {
+				foreach ($skippable as $notation) {
+					$this->errors[] = $langs->trans('ErrorSalaryAlreadyImported', $notation);
+				}
+				return -3;
+			}
+
+			// Explicitly asked to skip them: drop those rows and warn, so a run that failed halfway
+			// can be finished from the same file without editing the XLSX by hand.
+			// Keys are preserved on purpose: they index the raw parsed lines in the preview table and
+			// drive the "+2" row numbers in the lookup error messages.
+			$kept = array();
+			foreach ($validatedRows as $index => $row) {
+				$notation = isset($row['salary_notation']) ? (string) $row['salary_notation'] : '';
+				if ($notation !== '' && in_array($notation, $skippable, true)) {
+					continue;
+				}
+				$kept[$index] = $row;
+			}
+			foreach ($skippable as $notation) {
+				$this->warnings[] = $langs->trans('WarningSalaryAlreadyImportedSkipped', $notation);
+			}
+			$validatedRows = $kept;
+
+			if (empty($validatedRows)) {
+				$this->errors[] = $langs->trans('ErrorAllSalariesAlreadyImported');
+				return -3;
+			}
+		}
+
 		// Enrich with database lookups
 		$enrichedRows = $this->userLookup->enrichAll($validatedRows);
 
@@ -287,7 +357,7 @@ class SalaryImportService
 		// then fall back to the firstname/lastname match.
 		foreach ($enrichedRows as $index => &$row) {
 			$pdfPath = null;
-			if (!empty($row['salary_notation'])) {
+			if (isset($row['salary_notation']) && $row['salary_notation'] !== '') {
 				$pdfPath = $this->pdfMatcher->findPdfByNotation($row['salary_notation'], $this->pdfs);
 			}
 			if (empty($pdfPath)) {

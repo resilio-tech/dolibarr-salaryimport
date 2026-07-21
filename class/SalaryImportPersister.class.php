@@ -32,6 +32,39 @@ require_once DOL_DOCUMENT_ROOT.'/salaries/class/salary.class.php';
 class SalaryImportPersister
 {
 	/**
+	 * Maximum length of a salary label, matching llx_salary.label and llx_payment_salary.label,
+	 * both declared varchar(255).
+	 */
+	const LABEL_MAX_LENGTH = 255;
+
+	/**
+	 * A salary carrying this notation was created by a previous run of this import.
+	 */
+	const STATUS_IMPORTED = 'imported';
+
+	/**
+	 * The notation is taken by a salary this import did not create, so it can be neither imported
+	 * nor silently skipped.
+	 */
+	const STATUS_CONFLICT = 'conflict';
+
+	/**
+	 * Maximum length of a payment reference, matching llx_payment_salary.num_payment varchar(50).
+	 *
+	 * Kept in sync with SalaryImportValidator::PAYMENT_REF_MAX_LENGTH, which rejects an oversized
+	 * reference at preview time with the offending row number.
+	 */
+	const PAYMENT_REF_MAX_LENGTH = 50;
+
+	/**
+	 * Maximum length of a salary ref, matching llx_salary.ref declared varchar(30).
+	 *
+	 * Kept in sync with SalaryImportValidator::NOTATION_MAX_LENGTH, which rejects an oversized
+	 * notation at preview time with the offending row number.
+	 */
+	const REF_MAX_LENGTH = 30;
+
+	/**
 	 * @var DoliDB Database handler
 	 */
 	protected $db;
@@ -55,11 +88,6 @@ class SalaryImportPersister
 	 * @var array Warning messages (non-blocking errors like missing PDFs)
 	 */
 	public $warnings = array();
-
-	/**
-	 * @var int Counter for salary references
-	 */
-	protected $salaryRefCounter;
 
 	/**
 	 * @var int Counter for payment references
@@ -88,7 +116,14 @@ class SalaryImportPersister
 	}
 
 	/**
-	 * Initialize reference counters by fetching last refs from database
+	 * Initialize the payment reference counter by fetching the highest ref from database
+	 *
+	 * Salaries do not use a counter: their ref is the salary notation (see persistGroup).
+	 *
+	 * The maximum is computed in PHP rather than by the database: ordering on a numeric cast of a
+	 * varchar column needs a different, non-portable syntax on every backend, and there is no index
+	 * on llx_payment_salary.ref to preserve anyway. intval() also matches exactly how the counter is
+	 * turned back into a ref in getNextPaymentRef().
 	 *
 	 * @return int 1 on success, <0 on error
 	 */
@@ -96,42 +131,194 @@ class SalaryImportPersister
 	{
 		global $langs;
 
-		// Get last salary ref
-		$sql = "SELECT ref FROM ".MAIN_DB_PREFIX."salary ORDER BY CAST(ref AS UNSIGNED) DESC LIMIT 1";
-		$result = $this->db->query($sql);
-		if (!$result) {
-			$this->errors[] = $langs->trans('ErrorGetLastSalaryRef', $this->db->lasterror());
-			return -1;
-		}
-		$obj = $this->db->fetch_object($result);
-		$this->salaryRefCounter = $obj ? intval($obj->ref) : 0;
+		// Scoped by entity, like the rows this counter is about to number
+		$sql = "SELECT ref FROM ".MAIN_DB_PREFIX."payment_salary";
+		$sql .= " WHERE entity = ".intval($this->conf->entity);
 
-		// Get last payment ref
-		$sql = "SELECT ref FROM ".MAIN_DB_PREFIX."payment_salary ORDER BY CAST(ref AS UNSIGNED) DESC LIMIT 1";
 		$result = $this->db->query($sql);
 		if (!$result) {
 			$this->errors[] = $langs->trans('ErrorGetLastPaymentRef', $this->db->lasterror());
 			return -2;
 		}
-		$obj = $this->db->fetch_object($result);
-		$this->paymentRefCounter = $obj ? intval($obj->ref) : 0;
+
+		$highest = 0;
+		while ($obj = $this->db->fetch_object($result)) {
+			$ref = intval($obj->ref);
+			if ($ref > $highest) {
+				$highest = $ref;
+			}
+		}
+		$this->paymentRefCounter = $highest;
 
 		$this->countersInitialized = true;
 		return 1;
 	}
 
 	/**
-	 * Get next salary reference
+	 * Find, among the given salary notations, those that already exist in this entity, and say why.
 	 *
-	 * @return string Next salary reference
+	 * A notation identifies one salary, so re-importing it would create a duplicate. The lookup
+	 * matches the ref, but also a label equal to the notation: salaries imported by 2.2.0 were
+	 * stored with a counter as ref and the bare notation as label. Salaries imported before 2.2.0
+	 * stored no notation at all and cannot be detected.
+	 *
+	 * Matching is done by the database, not in PHP, so it follows the column collation exactly. A
+	 * PHP-side equality would disagree with an accent-insensitive collation and let through a
+	 * duplicate the database had already matched.
+	 *
+	 * Each hit is classified, because the two cases must not be treated alike:
+	 *
+	 *  - STATUS_IMPORTED: the salary was created by this module for that notation. Skipping it on
+	 *    re-import is safe, it is already in the database.
+	 *  - STATUS_CONFLICT: the value is taken by a salary this import did not create, typically a
+	 *    counter ref left by 2.2.0 that happens to look like the notation. Importing is impossible
+	 *    (uk_salary_ref) but skipping would silently drop a payroll entry that was never imported,
+	 *    so this always has to be raised to the user.
+	 *
+	 * The result is a list, never a map keyed by notation: PHP turns a decimal-integer-like key
+	 * into an int, and a notation such as "2026" would then stop comparing equal to its own string.
+	 *
+	 * @param array $notations Salary notations to look for
+	 * @return array|null List of array('notation' => string, 'status' => STATUS_*), or null on error
 	 */
-	public function getNextSalaryRef()
+	public function findExistingSalaryRefs($notations)
 	{
-		if (!$this->countersInitialized) {
-			$this->initCounters();
+		global $langs;
+
+		$wanted = $this->normalizeNotations($notations);
+		if (empty($wanted)) {
+			return array();
 		}
-		$this->salaryRefCounter++;
-		return (string) $this->salaryRefCounter;
+
+		// One SELECT per notation, unioned: it lets the database report which notation a row matched
+		// (and whether it matched on ref or on label) under its own collation rules.
+		$selects = array();
+		foreach ($wanted as $notation) {
+			$escaped = $this->db->escape($notation);
+			$select = "SELECT '".$escaped."' AS notation,";
+			$select .= " CASE WHEN ref = '".$escaped."' THEN 1 ELSE 0 END AS ref_match,";
+			$select .= " CASE WHEN label = '".$escaped."' THEN 1 ELSE 0 END AS label_match,";
+			$select .= " ref, label";
+			$select .= " FROM ".MAIN_DB_PREFIX."salary";
+			$select .= " WHERE entity = ".intval($this->conf->entity);
+			$select .= " AND (ref = '".$escaped."' OR label = '".$escaped."')";
+			$selects[] = $select;
+		}
+
+		$result = $this->db->query(implode(' UNION ALL ', $selects));
+		if (!$result) {
+			$this->errors[] = $langs->trans('ErrorCheckSalaryRefs', $this->db->lasterror());
+			return null;
+		}
+
+		$statuses = array();
+		while ($obj = $this->db->fetch_object($result)) {
+			$notation = (string) $obj->notation;
+			$label = ($obj->label === null) ? '' : (string) $obj->label;
+
+			$ref = ($obj->ref === null) ? '' : (string) $obj->ref;
+
+			$status = $this->classifySalaryMatch(!empty($obj->ref_match), !empty($obj->label_match), $ref, $label, $notation);
+			if ($status === '') {
+				continue;
+			}
+			// A conflict outranks an import: if any row makes the value unusable, say so.
+			$key = array_search($notation, array_column($statuses, 'notation'), true);
+			if ($key === false) {
+				$statuses[] = array('notation' => $notation, 'status' => $status);
+			} elseif ($status === self::STATUS_CONFLICT) {
+				$statuses[$key]['status'] = $status;
+			}
+		}
+
+		return $statuses;
+	}
+
+	/**
+	 * Deduplicate notations and turn them into strings.
+	 *
+	 * Notations reach the persister as array keys in places, and PHP normalises a decimal-integer
+	 * key to an int, so "2026" must be cast back before it is compared or sent to the database.
+	 *
+	 * @param array $notations Raw notations
+	 * @return array List of unique non-empty notation strings
+	 */
+	public function normalizeNotations($notations)
+	{
+		$wanted = array();
+
+		foreach ((array) $notations as $notation) {
+			$notation = (string) $notation;
+			if ($notation !== '' && !in_array($notation, $wanted, true)) {
+				$wanted[] = $notation;
+			}
+		}
+
+		return $wanted;
+	}
+
+	/**
+	 * Read the status of a notation out of a findExistingSalaryRefs() result.
+	 *
+	 * @param array  $existing List returned by findExistingSalaryRefs()
+	 * @param string $notation Notation to look up
+	 * @return string STATUS_IMPORTED, STATUS_CONFLICT, or '' when the notation is not in the list
+	 */
+	public function statusForNotation($existing, $notation)
+	{
+		$notation = (string) $notation;
+
+		foreach ((array) $existing as $entry) {
+			if (isset($entry['notation']) && (string) $entry['notation'] === $notation) {
+				return isset($entry['status']) ? $entry['status'] : '';
+			}
+		}
+
+		return '';
+	}
+
+	/**
+	 * Decide what an existing salary row means for a notation we are about to import.
+	 *
+	 * Dolibarr itself never writes llx_salary.ref: Salary::create() omits the column, update() and
+	 * setPaid() leave it alone, and fetch() only overwrites the property in memory with the rowid.
+	 * A stored ref equal to the notation therefore comes from this module, and the only question is
+	 * whether it identifies this very salary or is a counter left by 2.2.0 that happens to look
+	 * like the notation. Only a purely numeric notation can collide with such a counter, so any
+	 * other notation is claimed as ours even when the label was edited afterwards.
+	 *
+	 * @param bool   $refMatches   Whether the database matched the notation on llx_salary.ref
+	 * @param bool   $labelMatches Whether the database matched the notation on llx_salary.label
+	 * @param string $ref          Salary ref read from the database ('' when NULL)
+	 * @param string $label        Salary label read from the database ('' when NULL)
+	 * @param string $notation     Notation being imported
+	 * @return string STATUS_IMPORTED, STATUS_CONFLICT, or '' when the row does not match
+	 */
+	public function classifySalaryMatch($refMatches, $labelMatches, $ref, $label, $notation)
+	{
+		// strlen and not mb_strlen: strncasecmp counts bytes, so the length must be in bytes too,
+		// otherwise a multibyte notation compares short and the trailing space is never checked.
+		$labelIsPrefixed = (strncasecmp($label, $notation.' ', strlen($notation) + 1) === 0);
+
+		if ($refMatches) {
+			if ($labelMatches || $labelIsPrefixed) {
+				return self::STATUS_IMPORTED; // current shape: notation in both columns
+			}
+
+			// The label carries no trace of the notation. Ours anyway, but it may be a 2.2.0 counter
+			// pointing at a different salary, and skipping that one would drop a real payroll entry.
+			return ctype_digit($notation) ? self::STATUS_CONFLICT : self::STATUS_IMPORTED;
+		}
+
+		if ($labelMatches) {
+			// 2.2.0 shape: bare notation as label, counter as ref. Every release of this module has
+			// written a ref, and Dolibarr itself never writes one, so an empty ref means the row was
+			// created from the UI and merely happens to be labelled like the notation. Its ref is
+			// NULL, so the notation is still free: not our import, and not a duplicate either.
+			return ($ref !== '') ? self::STATUS_IMPORTED : '';
+		}
+
+		return '';
 	}
 
 	/**
@@ -383,17 +570,58 @@ class SalaryImportPersister
 	}
 
 	/**
+	 * Build the label of a salary: the notation followed by the label imported from the XLSX.
+	 *
+	 * Dolibarr does not display llx_salary.ref (Salary::fetch() replaces it with the rowid), so the
+	 * notation has to live in the label to stay visible on the card and searchable in the list.
+	 * An empty imported label degrades to the notation alone, and a label already prefixed with the
+	 * notation is left untouched so re-imported data is not prefixed twice. "Already prefixed" means
+	 * the whole notation followed by a space (or nothing), so notation "2026-05-5" is still prefixed
+	 * onto a label starting with "2026-05-50".
+	 *
+	 * The result is truncated to llx_salary.label's varchar(255): the prefix makes the stored label
+	 * longer than the imported one, and a label that long is a display string, not something worth
+	 * failing a whole import for.
+	 *
+	 * @param string $notation Salary notation (e.g. "2026-05-5")
+	 * @param string $label    Label imported from the XLSX
+	 * @return string Label to store in llx_salary.label
+	 */
+	public function buildSalaryLabel($notation, $label)
+	{
+		$label = trim((string) $label);
+		$notation = trim((string) $notation);
+
+		if ($label === '') {
+			$built = $notation;
+		} elseif ($label === $notation || strpos($label, $notation.' ') === 0) {
+			$built = $label;
+		} else {
+			$built = $notation.' '.$label;
+		}
+
+		return mb_substr($built, 0, self::LABEL_MAX_LENGTH);
+	}
+
+	/**
 	 * Persist one salary group (all rows sharing the same notation).
 	 *
-	 * Creates a single salary (amount = total CHF, label = notation), then for each line of the
-	 * group a bank transaction + a payment_salary + the bank links. The PDF, if any, is moved once.
+	 * Creates a single salary (ref = notation, amount = total CHF, label = notation + imported
+	 * label), then for each line of the group a bank transaction + a payment_salary + the bank
+	 * links. The PDF, if any, is moved once.
 	 *
-	 * @param string $notation Salary notation shared by every row (e.g. "2026-05-5")
-	 * @param array  $rows     Enriched rows of the group from SalaryImportUserLookup
+	 * @param string $notation      Salary notation shared by every row (e.g. "2026-05-5")
+	 * @param array  $rows          Enriched rows of the group from SalaryImportUserLookup
+	 * @param array  $knownExisting Result of findExistingSalaryRefs() for the whole batch, to avoid
+	 *                              one lookup per group; null to let this method run its own
 	 * @return array Result with 'salaryId', 'salaryRef', 'notation' and 'payments', or empty on error
 	 */
-	public function persistGroup($notation, $rows)
+	public function persistGroup($notation, $rows, $knownExisting = null)
 	{
+		global $langs;
+
+		$notation = (string) $notation;
+
 		$result = array();
 		$this->errors = array();
 
@@ -402,6 +630,34 @@ class SalaryImportPersister
 			if ($this->initCounters() < 0) {
 				return $result;
 			}
+		}
+
+		// persistAll works on data POSTed from the confirmation form, which never goes back through
+		// the validator, so the width of llx_salary.ref is enforced again here, before the duplicate
+		// check below. Letting an oversized notation through would have the database silently
+		// truncate the ref under a non-strict SQL mode, while the duplicate check ran on the
+		// untruncated value.
+		if (mb_strlen($notation) > self::REF_MAX_LENGTH) {
+			$this->errors[] = $langs->trans('ErrorSalaryRefTooLong', $notation, self::REF_MAX_LENGTH);
+			return $result;
+		}
+
+		// The notation becomes the salary ref, so it must not already exist. Checked here (and not
+		// only at preview time) because the confirmation form can be replayed after a first import.
+		// persistAll passes the whole batch it already looked up, so this costs no extra query; a
+		// direct caller gets its own lookup.
+		if ($knownExisting === null) {
+			$knownExisting = $this->findExistingSalaryRefs(array($notation));
+			if ($knownExisting === null) {
+				return $result;
+			}
+		}
+		$status = $this->statusForNotation($knownExisting, $notation);
+		if ($status !== '') {
+			$this->errors[] = ($status === self::STATUS_CONFLICT)
+				? $langs->trans('ErrorSalaryRefConflict', $notation)
+				: $langs->trans('ErrorSalaryAlreadyImported', $notation);
+			return $result;
 		}
 
 		// All inserts of a group (salary + N bank/payment/url rows) are wrapped in a single
@@ -418,16 +674,21 @@ class SalaryImportPersister
 		});
 		$first = reset($rows);
 
-		// One salary per notation: amount = total in company currency, label = notation.
-		// Date/period are the same on every row; account/type come from the first row of the
+		// One salary per notation: the notation is the ref and the amount is the total in company
+		// currency. The label is prefixed with the notation because Dolibarr never displays
+		// llx_salary.ref (Salary::fetch() overwrites it with the rowid), so the label is the only
+		// place where the notation stays visible and searchable in the salary list.
+		// Date/period are the same on every row; label/account/type come from the first row of the
 		// deterministically sorted group (they may legitimately differ between payments).
-		$salaryRef = $this->getNextSalaryRef();
+		$salaryRef = $notation;
+		$importedLabel = isset($first['label']) ? (string) $first['label'] : '';
+		$salaryLabel = $this->buildSalaryLabel($notation, $importedLabel);
 		$salaryId = $this->insertSalary(
 			$salaryRef,
 			$first['datep'],
 			$first['total_salary_chf'],
 			$first['typepayment'],
-			$notation,
+			$salaryLabel,
 			$first['datesp'],
 			$first['dateep'],
 			$first['paye'],
@@ -472,13 +733,13 @@ class SalaryImportPersister
 				$row['datep'],
 				$row['amount_chf'],
 				$row['typepayment'],
-				$row['label'],
+				mb_substr(isset($row['label']) ? (string) $row['label'] : '', 0, self::LABEL_MAX_LENGTH),
 				$row['datesp'],
 				$row['dateep'],
 				$row['userId'],
 				$bankId,
 				$salaryId,
-				$row['payment_ref']
+				mb_substr(isset($row['payment_ref']) ? (string) $row['payment_ref'] : '', 0, self::PAYMENT_REF_MAX_LENGTH)
 			);
 
 			if ($paymentId < 0) {
@@ -581,7 +842,7 @@ class SalaryImportPersister
 		// tampered input, so we fail fast instead of silently creating a "row_N" labelled salary.
 		$groups = array();
 		foreach ($enrichedRows as $index => $data) {
-			if (empty($data['salary_notation'])) {
+			if (!isset($data['salary_notation']) || $data['salary_notation'] === '') {
 				$rowLabel = !empty($data['userName']) ? $data['userName'] : ('#'.($index + 1));
 				$this->errors[] = $langs->trans('ErrorMissingSalaryNotation', $rowLabel);
 				return $results; // empty: abort the whole import
@@ -590,8 +851,18 @@ class SalaryImportPersister
 			$groups[$notation][] = $data;
 		}
 
+		// One lookup for the whole batch, so the persist loop makes a single round-trip instead of
+		// one query per group. (The scan count is unchanged: matching on the unindexed label column
+		// costs one scan per notation either way.)
+		$existing = $this->findExistingSalaryRefs(array_keys($groups));
+		if ($existing === null) {
+			return $results; // empty: the duplicate guard is not optional
+		}
+
 		foreach ($groups as $notation => $rows) {
-			$result = $this->persistGroup($notation, $rows);
+			// PHP turns a decimal-integer-like array key into an int, so a notation such as "2026"
+			// would otherwise reach persistGroup (and the database) as an int.
+			$result = $this->persistGroup((string) $notation, $rows, $existing);
 
 			if (empty($result)) {
 				$groupErrors[] = $langs->trans('ErrorPersistGroup', $notation, implode(', ', $this->errors));

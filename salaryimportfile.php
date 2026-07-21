@@ -126,10 +126,17 @@ try {
 		throw new Exception(implode('<br />', $service->errors));
 	}
 
-	// Process files and prepare preview
-	$processResult = $service->processForPreview();
+	// Process files and prepare preview. The checkbox from the upload form lets the user finish an
+	// import that failed halfway, by skipping the salaries already in the database.
+	$skipExisting = GETPOST('skip_existing', 'int');
+	$processResult = $service->processForPreview($skipExisting);
 	if ($processResult < 0) {
 		throw new Exception(implode('<br />', $service->errors));
+	}
+
+	// Salaries skipped because they were already imported (only when explicitly requested)
+	if (!empty($service->warnings)) {
+		setEventMessages(null, $service->warnings, 'warnings');
 	}
 
 	// Get data for display
