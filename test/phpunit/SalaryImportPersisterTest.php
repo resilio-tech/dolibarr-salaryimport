@@ -145,6 +145,22 @@ class SalaryImportPersisterTest extends CommonClassTest
 	}
 
 	/**
+	 * Test buildSalaryLabel truncates to the width of llx_salary.label
+	 *
+	 * The notation prefix makes the stored label longer than the imported one, so a long label
+	 * must not overflow the varchar(255) and fail the whole group.
+	 *
+	 * @return void
+	 */
+	public function testBuildSalaryLabelTruncatesToColumnWidth()
+	{
+		$result = $this->persister->buildSalaryLabel('2026-05-5', str_repeat('a', 300));
+
+		$this->assertEquals(SalaryImportPersister::LABEL_MAX_LENGTH, mb_strlen($result));
+		$this->assertStringStartsWith('2026-05-5 aaa', $result);
+	}
+
+	/**
 	 * Test getNextPaymentRef increments
 	 *
 	 * @return void

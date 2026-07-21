@@ -424,11 +424,16 @@ class SalaryImportPersisterTest extends TestCase
 		preg_match($pattern, $source, $matches);
 		$methodBody = $matches[1];
 
-		$this->assertStringContainsString("return \$notation;", $methodBody, 'An empty label should degrade to the notation');
+		$this->assertStringContainsString("\$built = \$notation;", $methodBody, 'An empty label should degrade to the notation');
 		$this->assertStringContainsString(
 			"strpos(\$label, \$notation.' ') === 0",
 			$methodBody,
 			'An already prefixed label should not be prefixed twice, and the notation must be matched as a whole'
+		);
+		$this->assertStringContainsString(
+			'mb_substr($built, 0, self::LABEL_MAX_LENGTH)',
+			$methodBody,
+			'The built label should be truncated to the width of llx_salary.label'
 		);
 	}
 
@@ -482,6 +487,25 @@ class SalaryImportPersisterTest extends TestCase
 
 		$this->assertStringContainsString('$this->conf->entity', $methodBody, 'The lookup should be scoped to the current entity');
 		$this->assertStringContainsString('$this->db->escape', $methodBody, 'The notations should be escaped');
+	}
+
+	/**
+	 * Verify findExistingSalaryRefs also matches the label, so salaries imported before the notation
+	 * became the ref (counter as ref, bare notation as label) are still detected as duplicates
+	 */
+	public function testFindExistingSalaryRefsAlsoMatchesLegacyLabel()
+	{
+		$sourceFile = dirname(__FILE__).'/../../../class/SalaryImportPersister.class.php';
+		$source = file_get_contents($sourceFile);
+
+		$pattern = '/function findExistingSalaryRefs\([^)]*\)\s*\{([\s\S]+?)\n\t\}/';
+		$this->assertMatchesRegularExpression($pattern, $source, 'Should find findExistingSalaryRefs method');
+
+		preg_match($pattern, $source, $matches);
+		$methodBody = $matches[1];
+
+		$this->assertStringContainsString('ref IN (', $methodBody, 'The lookup should match the ref');
+		$this->assertStringContainsString('OR label IN (', $methodBody, 'The lookup should also match a legacy label');
 	}
 
 	/**

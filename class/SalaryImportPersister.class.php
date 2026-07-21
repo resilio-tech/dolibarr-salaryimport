@@ -32,6 +32,11 @@ require_once DOL_DOCUMENT_ROOT.'/salaries/class/salary.class.php';
 class SalaryImportPersister
 {
 	/**
+	 * Maximum length of a salary label, matching llx_salary.label declared varchar(255).
+	 */
+	const LABEL_MAX_LENGTH = 255;
+
+	/**
 	 * @var DoliDB Database handler
 	 */
 	protected $db;
@@ -108,10 +113,15 @@ class SalaryImportPersister
 	}
 
 	/**
-	 * Find, among the given salary notations, those already used as a salary ref in this entity.
+	 * Find, among the given salary notations, those already imported in this entity.
 	 *
 	 * A notation identifies one salary, so re-importing it would create a duplicate. Callers use
 	 * this both to warn before the confirmation step and to guard the insert itself.
+	 *
+	 * The lookup matches the ref, but also a label strictly equal to the notation: salaries imported
+	 * before the notation became the ref were stored with a counter as ref and the bare notation as
+	 * label, and they would otherwise be invisible here (re-importing an old file is precisely what
+	 * people do when they suspect an import failed).
 	 *
 	 * @param array $notations Salary notations to look for
 	 * @return array|null Notations already present in llx_salary, or null on database error
@@ -128,12 +138,14 @@ class SalaryImportPersister
 		foreach (array_unique($notations) as $notation) {
 			$quoted[] = "'".$this->db->escape($notation)."'";
 		}
+		$quotedList = implode(', ', $quoted);
 
-		// DISTINCT: llx_salary.ref carries no unique constraint, so the same ref can already appear
-		// several times and would otherwise be reported once per occurrence.
-		$sql = "SELECT DISTINCT ref FROM ".MAIN_DB_PREFIX."salary";
+		// DISTINCT because a notation can match on both columns at once, and because the uniqueness
+		// of (ref, entity) guaranteed by the uk_salary_ref index does not extend to the label.
+		$sql = "SELECT DISTINCT ref, label FROM ".MAIN_DB_PREFIX."salary";
 		$sql .= " WHERE entity = ".intval($this->conf->entity);
-		$sql .= " AND ref IN (".implode(', ', $quoted).")";
+		$sql .= " AND (ref IN (".$quotedList.")";
+		$sql .= " OR label IN (".$quotedList."))";
 
 		$result = $this->db->query($sql);
 		if (!$result) {
@@ -141,9 +153,16 @@ class SalaryImportPersister
 			return null;
 		}
 
+		// Report the notation the caller asked about, which is the ref for a current import and the
+		// label for a legacy one.
+		$wanted = array_unique($notations);
 		$existing = array();
 		while ($obj = $this->db->fetch_object($result)) {
-			$existing[] = $obj->ref;
+			foreach (array($obj->ref, $obj->label) as $candidate) {
+				if (in_array($candidate, $wanted, true) && !in_array($candidate, $existing, true)) {
+					$existing[] = $candidate;
+				}
+			}
 		}
 
 		return $existing;
@@ -407,6 +426,10 @@ class SalaryImportPersister
 	 * the whole notation followed by a space (or nothing), so notation "2026-05-5" is still prefixed
 	 * onto a label starting with "2026-05-50".
 	 *
+	 * The result is truncated to llx_salary.label's varchar(255): the prefix makes the stored label
+	 * longer than the imported one, and a label that long is a display string, not something worth
+	 * failing a whole import for.
+	 *
 	 * @param string $notation Salary notation (e.g. "2026-05-5")
 	 * @param string $label    Label imported from the XLSX
 	 * @return string Label to store in llx_salary.label
@@ -417,13 +440,14 @@ class SalaryImportPersister
 		$notation = trim((string) $notation);
 
 		if ($label === '') {
-			return $notation;
-		}
-		if ($label === $notation || strpos($label, $notation.' ') === 0) {
-			return $label;
+			$built = $notation;
+		} elseif ($label === $notation || strpos($label, $notation.' ') === 0) {
+			$built = $label;
+		} else {
+			$built = $notation.' '.$label;
 		}
 
-		return $notation.' '.$label;
+		return mb_substr($built, 0, self::LABEL_MAX_LENGTH);
 	}
 
 	/**
@@ -643,7 +667,7 @@ class SalaryImportPersister
 		// tampered input, so we fail fast instead of silently creating a "row_N" labelled salary.
 		$groups = array();
 		foreach ($enrichedRows as $index => $data) {
-			if (empty($data['salary_notation'])) {
+			if (!isset($data['salary_notation']) || $data['salary_notation'] === '') {
 				$rowLabel = !empty($data['userName']) ? $data['userName'] : ('#'.($index + 1));
 				$this->errors[] = $langs->trans('ErrorMissingSalaryNotation', $rowLabel);
 				return $results; // empty: abort the whole import

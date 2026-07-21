@@ -401,7 +401,7 @@ class SalaryImportValidator
 		// Group rows by salary notation
 		$groups = array();
 		foreach ($validatedRows as $row) {
-			if (empty($row['salary_notation'])) {
+			if (!isset($row['salary_notation']) || $row['salary_notation'] === '') {
 				continue;
 			}
 			$groups[$row['salary_notation']][] = $row;

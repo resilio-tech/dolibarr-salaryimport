@@ -277,9 +277,11 @@ class SalaryImportService
 
 		// Each notation becomes the ref of a salary, so refuse a file whose salaries are already in
 		// the database rather than letting the user reach the confirmation step for nothing.
+		// Compared to '' and not empty(): "0" is an unusual but legitimate notation, and dropping it
+		// here would let it slip past the check and fail later, at persist time.
 		$notations = array();
 		foreach ($validatedRows as $row) {
-			if (!empty($row['salary_notation'])) {
+			if (isset($row['salary_notation']) && $row['salary_notation'] !== '') {
 				$notations[] = $row['salary_notation'];
 			}
 		}

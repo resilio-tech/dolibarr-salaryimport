@@ -176,6 +176,12 @@ try {
 
 	setEventMessages($langs->trans("ImportSuccess", $importedCount), null, 'mesgs');
 
+	// Groups persist one by one, so some can fail while others are committed. executeImport only
+	// returns how many succeeded: without this, a partial import would be reported as a full success.
+	if (!empty($service->errors)) {
+		setEventMessages(null, $service->errors, 'errors');
+	}
+
 	// Display errors if any PDF files could not be attached (red banner)
 	if (!empty($service->warnings)) {
 		setEventMessages(null, $service->warnings, 'errors');
