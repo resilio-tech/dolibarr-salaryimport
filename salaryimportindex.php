@@ -126,6 +126,13 @@ print '<td class="titlefieldcreate">'.$langs->trans("SalaryPdfZipFile").'</td>';
 print '<td><input type="file" name="zip" accept=".zip" class="minwidth300"></td>';
 print '</tr>';
 
+// Skip salaries already imported (to finish a run that failed halfway)
+print '<tr>';
+print '<td class="titlefieldcreate">'.$langs->trans("SkipExistingSalaries").'</td>';
+print '<td><input type="checkbox" name="skip_existing" value="1" id="skip_existing">';
+print ' <label for="skip_existing" class="opacitymedium">'.$langs->trans("SkipExistingSalariesHelp").'</label></td>';
+print '</tr>';
+
 print '</table>';
 
 print dol_get_fiche_end();

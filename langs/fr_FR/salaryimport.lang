@@ -54,6 +54,8 @@ SalaryImportStep3 = Import de salaires (3/3) - Confirmation
 # Form labels
 SalaryXlsxFile = Fichier XLSX des salaires
 SalaryPdfZipFile = Fichier ZIP avec les fiches de paie (optionnel)
+SkipExistingSalaries = Salaires déjà importés
+SkipExistingSalariesHelp = Les ignorer au lieu de refuser le fichier (pour terminer un import qui a échoué en cours de route)
 SelectXlsxFile = Sélectionnez un fichier Excel (.xlsx)
 SelectZipFile = Sélectionnez un fichier ZIP contenant les PDF
 
@@ -154,6 +156,8 @@ ErrorGroupDateMismatch = Le salaire %s a des dates différentes selon les lignes
 ErrorGroupTotalMismatch = Le total du salaire %s diffère selon les lignes %s
 ErrorGroupSumMismatch = Le salaire %s (lignes %s) : la somme des paiements CHF (%s) ne correspond pas au total déclaré (%s)
 ErrorSalaryAlreadyImported = Le salaire %s a déjà été importé (un salaire avec cette référence existe déjà)
+ErrorAllSalariesAlreadyImported = Tous les salaires de ce fichier sont déjà importés : il n'y a plus rien à importer
+WarningSalaryAlreadyImportedSkipped = Salaire %s déjà importé : ignoré
 
 # Lookup errors
 ErrorUserNotFound = Utilisateur non trouvé à la ligne %s

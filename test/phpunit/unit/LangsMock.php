@@ -56,6 +56,8 @@ class LangsMock
 		'ErrorGroupTotalMismatch' => 'Le total du salaire %s diffère selon les lignes %s',
 		'ErrorGroupSumMismatch' => 'Le salaire %s (lignes %s) : la somme des paiements CHF (%s) ne correspond pas au total déclaré (%s)',
 		'ErrorSalaryAlreadyImported' => 'Le salaire %s a déjà été importé (un salaire avec cette référence existe déjà)',
+		'ErrorAllSalariesAlreadyImported' => "Tous les salaires de ce fichier sont déjà importés : il n'y a plus rien à importer",
+		'WarningSalaryAlreadyImportedSkipped' => 'Salaire %s déjà importé : ignoré',
 
 		// Lookup errors
 		'ErrorUserNotFound' => 'User not found at row %s',

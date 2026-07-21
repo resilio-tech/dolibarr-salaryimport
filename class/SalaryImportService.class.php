@@ -238,12 +238,15 @@ class SalaryImportService
 	/**
 	 * Process uploaded files and prepare preview data
 	 *
+	 * @param int $skipExisting 1 to drop the salaries already imported and keep going, 0 (default)
+	 *                          to refuse the whole file when any of them is already in the database
 	 * @return int 1 on success, <0 on error
 	 */
-	public function processForPreview()
+	public function processForPreview($skipExisting = 0)
 	{
 		global $langs;
 		$this->errors = array();
+		$this->warnings = array();
 		$this->previewData = array();
 
 		if (empty($this->uploadedXlsxName)) {
@@ -291,10 +294,34 @@ class SalaryImportService
 			return -3;
 		}
 		if (!empty($alreadyImported)) {
-			foreach ($alreadyImported as $notation) {
-				$this->errors[] = $langs->trans('ErrorSalaryAlreadyImported', $notation);
+			if (empty($skipExisting)) {
+				foreach ($alreadyImported as $notation) {
+					$this->errors[] = $langs->trans('ErrorSalaryAlreadyImported', $notation);
+				}
+				return -3;
 			}
-			return -3;
+
+			// Explicitly asked to skip them: drop those rows and warn, so a run that failed halfway
+			// can be finished from the same file without editing the XLSX by hand.
+			// Keys are preserved on purpose: they index the raw parsed lines in the preview table and
+			// drive the "+2" row numbers in the lookup error messages.
+			$kept = array();
+			foreach ($validatedRows as $index => $row) {
+				$notation = isset($row['salary_notation']) ? (string) $row['salary_notation'] : '';
+				if ($notation !== '' && in_array($notation, $alreadyImported, true)) {
+					continue;
+				}
+				$kept[$index] = $row;
+			}
+			foreach ($alreadyImported as $notation) {
+				$this->warnings[] = $langs->trans('WarningSalaryAlreadyImportedSkipped', $notation);
+			}
+			$validatedRows = $kept;
+
+			if (empty($validatedRows)) {
+				$this->errors[] = $langs->trans('ErrorAllSalariesAlreadyImported');
+				return -3;
+			}
 		}
 
 		// Enrich with database lookups
