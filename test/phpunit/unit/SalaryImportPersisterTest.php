@@ -612,8 +612,9 @@ class SalaryImportPersisterTest extends TestCase
 		preg_match($pattern, $source, $matches);
 		$methodBody = $matches[1];
 
-		$this->assertStringContainsString('ref IN (', $methodBody, 'The lookup should match the ref');
-		$this->assertStringContainsString('OR label IN (', $methodBody, 'The lookup should also match a legacy label');
+		$sql = str_replace('"', '', $methodBody);
+		$this->assertStringContainsString('AND (ref = ', $sql, 'The lookup should match the ref');
+		$this->assertStringContainsString('OR label = ', $sql, 'The lookup should also match a legacy label');
 	}
 
 	/**
