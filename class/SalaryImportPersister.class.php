@@ -49,6 +49,14 @@ class SalaryImportPersister
 	const STATUS_CONFLICT = 'conflict';
 
 	/**
+	 * Maximum length of a payment reference, matching llx_payment_salary.num_payment varchar(50).
+	 *
+	 * Kept in sync with SalaryImportValidator::PAYMENT_REF_MAX_LENGTH, which rejects an oversized
+	 * reference at preview time with the offending row number.
+	 */
+	const PAYMENT_REF_MAX_LENGTH = 50;
+
+	/**
 	 * Maximum length of a salary ref, matching llx_salary.ref declared varchar(30).
 	 *
 	 * Kept in sync with SalaryImportValidator::NOTATION_MAX_LENGTH, which rejects an oversized
@@ -716,7 +724,7 @@ class SalaryImportPersister
 				$row['userId'],
 				$bankId,
 				$salaryId,
-				$row['payment_ref']
+				mb_substr(isset($row['payment_ref']) ? (string) $row['payment_ref'] : '', 0, self::PAYMENT_REF_MAX_LENGTH)
 			);
 
 			if ($paymentId < 0) {

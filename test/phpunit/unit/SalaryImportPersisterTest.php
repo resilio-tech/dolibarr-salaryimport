@@ -550,6 +550,11 @@ class SalaryImportPersisterTest extends TestCase
 			$methodBody,
 			'The payment label should be capped to the column width too'
 		);
+		$this->assertStringContainsString(
+			'mb_substr(isset($row[\'payment_ref\']) ? (string) $row[\'payment_ref\'] : \'\', 0, self::PAYMENT_REF_MAX_LENGTH)',
+			$methodBody,
+			'The payment reference should be capped to the column width too'
+		);
 	}
 
 	/**
