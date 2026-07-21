@@ -292,8 +292,8 @@ class SalaryImportValidator
 		}
 
 		// Validate label
-		$label = isset($line['Libellé']) ? trim($line['Libellé']) : '';
-		if (empty($label)) {
+		$label = isset($line['Libellé']) ? trim((string) $line['Libellé']) : '';
+		if ($label === '') {
 			$rowErrors[] = $langs->trans('ErrorEmptyLabel', $rowNum);
 		} elseif (mb_strlen($label) > self::LABEL_MAX_LENGTH) {
 			$rowErrors[] = $langs->trans('ErrorLabelTooLong', self::LABEL_MAX_LENGTH, $rowNum);

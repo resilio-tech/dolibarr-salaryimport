@@ -180,6 +180,7 @@ ErrorIndexPdf = Impossible d'indexer le fichier PDF dans la base de données
 ErrorPersistRow = Erreur lors de la persistance de la ligne %s : %s
 ErrorPersistGroup = Erreur lors de la persistance du salaire %s : %s
 ErrorMissingSalaryNotation = Notation de salaire manquante pour la ligne %s : import impossible
+ErrorSalaryRefTooLong = Notation de salaire '%s' de plus de %s caractères : import impossible
 
 # Cleanup errors
 ErrorDeleteXlsx = Impossible de supprimer le fichier XLSX

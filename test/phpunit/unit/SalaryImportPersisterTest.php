@@ -400,7 +400,7 @@ class SalaryImportPersisterTest extends TestCase
 
 		$this->assertStringContainsString('$salaryRef = $notation;', $methodBody, 'The salary ref should be the notation');
 		$this->assertStringContainsString(
-			"buildSalaryLabel(\$notation, \$first['label'])",
+			'buildSalaryLabel($notation, $importedLabel)',
 			$methodBody,
 			'The salary label should be built from the notation and the imported label'
 		);
@@ -487,6 +487,68 @@ class SalaryImportPersisterTest extends TestCase
 
 		$this->assertStringContainsString('$this->conf->entity', $methodBody, 'The lookup should be scoped to the current entity');
 		$this->assertStringContainsString('$this->db->escape', $methodBody, 'The notations should be escaped');
+	}
+
+	/**
+	 * Verify findExistingSalaryRefs compares case-insensitively and on strings, so a notation the
+	 * database matched under its _ci collation (or one that reached us as an int array key) is not
+	 * dropped by the PHP-side mapping
+	 */
+	public function testFindExistingSalaryRefsMappingIsStringAndCaseInsensitive()
+	{
+		$sourceFile = dirname(__FILE__).'/../../../class/SalaryImportPersister.class.php';
+		$source = file_get_contents($sourceFile);
+
+		$pattern = '/function findExistingSalaryRefs\([^)]*\)\s*\{([\s\S]+?)\n\t\}/';
+		$this->assertMatchesRegularExpression($pattern, $source, 'Should find findExistingSalaryRefs method');
+
+		preg_match($pattern, $source, $matches);
+		$methodBody = $matches[1];
+
+		$this->assertStringContainsString('$notation = (string) $notation;', $methodBody, 'Notations should be cast to string');
+		$this->assertStringContainsString('strcasecmp((string) $candidate, $notation) === 0', $methodBody, 'The mapping should be case-insensitive');
+		$this->assertStringNotContainsString('in_array($candidate, $wanted, true)', $methodBody, 'The strict mapping should be gone');
+	}
+
+	/**
+	 * Verify persistAll hands persistGroup a string, since PHP turns a numeric array key into an int
+	 */
+	public function testPersistAllCastsTheNotationBackToString()
+	{
+		$sourceFile = dirname(__FILE__).'/../../../class/SalaryImportPersister.class.php';
+		$source = file_get_contents($sourceFile);
+
+		$pattern = '/function persistAll\([^)]*\)\s*\{([\s\S]+?)\n\t\}/';
+		$this->assertMatchesRegularExpression($pattern, $source, 'Should find persistAll method');
+
+		preg_match($pattern, $source, $matches);
+		$methodBody = $matches[1];
+
+		$this->assertStringContainsString('persistGroup((string) $notation, $rows)', $methodBody, 'persistGroup should receive a string notation');
+	}
+
+	/**
+	 * Verify persistGroup enforces the ref width itself, since the confirmation form never goes
+	 * back through the validator
+	 */
+	public function testPersistGroupEnforcesRefWidth()
+	{
+		$sourceFile = dirname(__FILE__).'/../../../class/SalaryImportPersister.class.php';
+		$source = file_get_contents($sourceFile);
+
+		$pattern = '/function persistGroup\([^)]*\)\s*\{([\s\S]+?)\n\t\}/';
+		$this->assertMatchesRegularExpression($pattern, $source, 'Should find persistGroup method');
+
+		preg_match($pattern, $source, $matches);
+		$methodBody = $matches[1];
+
+		$this->assertStringContainsString('mb_strlen($notation) > self::REF_MAX_LENGTH', $methodBody, 'persistGroup should check the ref width');
+		$this->assertStringContainsString('ErrorSalaryRefTooLong', $methodBody, 'persistGroup should report an oversized notation');
+		$this->assertStringContainsString(
+			'mb_substr(isset($row[\'label\']) ? (string) $row[\'label\'] : \'\', 0, self::LABEL_MAX_LENGTH)',
+			$methodBody,
+			'The payment label should be capped to the column width too'
+		);
 	}
 
 	/**

@@ -309,7 +309,7 @@ class SalaryImportService
 		// then fall back to the firstname/lastname match.
 		foreach ($enrichedRows as $index => &$row) {
 			$pdfPath = null;
-			if (!empty($row['salary_notation'])) {
+			if (isset($row['salary_notation']) && $row['salary_notation'] !== '') {
 				$pdfPath = $this->pdfMatcher->findPdfByNotation($row['salary_notation'], $this->pdfs);
 			}
 			if (empty($pdfPath)) {

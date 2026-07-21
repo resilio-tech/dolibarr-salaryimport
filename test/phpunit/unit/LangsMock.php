@@ -81,6 +81,7 @@ class LangsMock
 		'ErrorPersistRow' => 'Error persisting row %s: %s',
 		'ErrorPersistGroup' => 'Error persisting salary %s: %s',
 		'ErrorMissingSalaryNotation' => 'Missing salary notation for row %s: cannot import',
+		'ErrorSalaryRefTooLong' => "Salary notation '%s' exceeds %s characters: cannot import",
 
 		// Cleanup errors
 		'ErrorDeleteXlsx' => 'Failed to delete XLSX file',

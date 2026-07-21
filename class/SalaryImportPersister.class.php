@@ -32,9 +32,18 @@ require_once DOL_DOCUMENT_ROOT.'/salaries/class/salary.class.php';
 class SalaryImportPersister
 {
 	/**
-	 * Maximum length of a salary label, matching llx_salary.label declared varchar(255).
+	 * Maximum length of a salary label, matching llx_salary.label and llx_payment_salary.label,
+	 * both declared varchar(255).
 	 */
 	const LABEL_MAX_LENGTH = 255;
+
+	/**
+	 * Maximum length of a salary ref, matching llx_salary.ref declared varchar(30).
+	 *
+	 * Kept in sync with SalaryImportValidator::NOTATION_MAX_LENGTH, which rejects an oversized
+	 * notation at preview time with the offending row number.
+	 */
+	const REF_MAX_LENGTH = 30;
 
 	/**
 	 * @var DoliDB Database handler
@@ -119,9 +128,12 @@ class SalaryImportPersister
 	 * this both to warn before the confirmation step and to guard the insert itself.
 	 *
 	 * The lookup matches the ref, but also a label strictly equal to the notation: salaries imported
-	 * before the notation became the ref were stored with a counter as ref and the bare notation as
-	 * label, and they would otherwise be invisible here (re-importing an old file is precisely what
-	 * people do when they suspect an import failed).
+	 * by 2.2.0 were stored with a counter as ref and the bare notation as label, and would otherwise
+	 * be invisible here (re-importing a file is precisely what people do when they suspect an import
+	 * failed). Salaries imported before 2.2.0 stored no notation at all and cannot be detected.
+	 *
+	 * A ref matching a notation is reported even when it belongs to a legacy salary that merely got
+	 * that number from the old counter: the uk_salary_ref index makes the value unusable either way.
 	 *
 	 * @param array $notations Salary notations to look for
 	 * @return array|null Notations already present in llx_salary, or null on database error
@@ -134,8 +146,21 @@ class SalaryImportPersister
 			return array();
 		}
 
+		// Cast to string: a purely numeric notation reaches this method as an int when it comes from
+		// an array key (see persistAll), and it has to be compared against DB strings below.
+		$wanted = array();
+		foreach ($notations as $notation) {
+			$notation = (string) $notation;
+			if ($notation !== '' && !in_array($notation, $wanted, true)) {
+				$wanted[] = $notation;
+			}
+		}
+		if (empty($wanted)) {
+			return array();
+		}
+
 		$quoted = array();
-		foreach (array_unique($notations) as $notation) {
+		foreach ($wanted as $notation) {
 			$quoted[] = "'".$this->db->escape($notation)."'";
 		}
 		$quotedList = implode(', ', $quoted);
@@ -154,13 +179,19 @@ class SalaryImportPersister
 		}
 
 		// Report the notation the caller asked about, which is the ref for a current import and the
-		// label for a legacy one.
-		$wanted = array_unique($notations);
+		// label for a legacy one. The comparison is case-insensitive to mirror the _ci collation the
+		// IN clauses above run under: a strict comparison here would drop rows the database matched
+		// and let a duplicate through.
 		$existing = array();
 		while ($obj = $this->db->fetch_object($result)) {
 			foreach (array($obj->ref, $obj->label) as $candidate) {
-				if (in_array($candidate, $wanted, true) && !in_array($candidate, $existing, true)) {
-					$existing[] = $candidate;
+				if ($candidate === null) {
+					continue;
+				}
+				foreach ($wanted as $notation) {
+					if (strcasecmp((string) $candidate, $notation) === 0 && !in_array($notation, $existing, true)) {
+						$existing[] = $notation;
+					}
 				}
 			}
 		}
@@ -465,6 +496,8 @@ class SalaryImportPersister
 	{
 		global $langs;
 
+		$notation = (string) $notation;
+
 		$result = array();
 		$this->errors = array();
 
@@ -473,6 +506,15 @@ class SalaryImportPersister
 			if ($this->initCounters() < 0) {
 				return $result;
 			}
+		}
+
+		// persistAll works on data POSTed from the confirmation form, which never goes back through
+		// the validator, so the width of llx_salary.ref is enforced again here. Letting an oversized
+		// notation through would have the database silently truncate the ref under a non-strict SQL
+		// mode, while the duplicate check above ran on the untruncated value.
+		if (mb_strlen($notation) > self::REF_MAX_LENGTH) {
+			$this->errors[] = $langs->trans('ErrorSalaryRefTooLong', $notation, self::REF_MAX_LENGTH);
+			return $result;
 		}
 
 		// The notation becomes the salary ref, so it must not already exist. Checked here (and not
@@ -507,7 +549,8 @@ class SalaryImportPersister
 		// Date/period are the same on every row; label/account/type come from the first row of the
 		// deterministically sorted group (they may legitimately differ between payments).
 		$salaryRef = $notation;
-		$salaryLabel = $this->buildSalaryLabel($notation, $first['label']);
+		$importedLabel = isset($first['label']) ? (string) $first['label'] : '';
+		$salaryLabel = $this->buildSalaryLabel($notation, $importedLabel);
 		$salaryId = $this->insertSalary(
 			$salaryRef,
 			$first['datep'],
@@ -558,7 +601,7 @@ class SalaryImportPersister
 				$row['datep'],
 				$row['amount_chf'],
 				$row['typepayment'],
-				$row['label'],
+				mb_substr(isset($row['label']) ? (string) $row['label'] : '', 0, self::LABEL_MAX_LENGTH),
 				$row['datesp'],
 				$row['dateep'],
 				$row['userId'],
@@ -677,7 +720,9 @@ class SalaryImportPersister
 		}
 
 		foreach ($groups as $notation => $rows) {
-			$result = $this->persistGroup($notation, $rows);
+			// PHP turns a decimal-integer-like array key into an int, so a notation such as "2026"
+			// would otherwise reach persistGroup (and the database) as an int.
+			$result = $this->persistGroup((string) $notation, $rows);
 
 			if (empty($result)) {
 				$groupErrors[] = $langs->trans('ErrorPersistGroup', $notation, implode(', ', $this->errors));
