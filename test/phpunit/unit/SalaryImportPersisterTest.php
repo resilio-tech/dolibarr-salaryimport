@@ -506,7 +506,7 @@ class SalaryImportPersisterTest extends TestCase
 		$methodBody = $matches[1];
 
 		$this->assertStringContainsString('$notation = (string) $notation;', $methodBody, 'Notations should be cast to string');
-		$this->assertStringContainsString('strcasecmp((string) $candidate, $notation) === 0', $methodBody, 'The mapping should be case-insensitive');
+		$this->assertStringContainsString('classifySalaryMatch($ref, $label, $notation)', $methodBody, 'The mapping should go through classifySalaryMatch');
 		$this->assertStringNotContainsString('in_array($candidate, $wanted, true)', $methodBody, 'The strict mapping should be gone');
 	}
 
@@ -524,7 +524,7 @@ class SalaryImportPersisterTest extends TestCase
 		preg_match($pattern, $source, $matches);
 		$methodBody = $matches[1];
 
-		$this->assertStringContainsString('persistGroup((string) $notation, $rows)', $methodBody, 'persistGroup should receive a string notation');
+		$this->assertStringContainsString('persistGroup((string) $notation, $rows, $existing)', $methodBody, 'persistGroup should receive a string notation');
 	}
 
 	/**
