@@ -619,9 +619,10 @@ class SalaryImportPersister
 		}
 
 		// persistAll works on data POSTed from the confirmation form, which never goes back through
-		// the validator, so the width of llx_salary.ref is enforced again here. Letting an oversized
-		// notation through would have the database silently truncate the ref under a non-strict SQL
-		// mode, while the duplicate check above ran on the untruncated value.
+		// the validator, so the width of llx_salary.ref is enforced again here, before the duplicate
+		// check below. Letting an oversized notation through would have the database silently
+		// truncate the ref under a non-strict SQL mode, while the duplicate check ran on the
+		// untruncated value.
 		if (mb_strlen($notation) > self::REF_MAX_LENGTH) {
 			$this->errors[] = $langs->trans('ErrorSalaryRefTooLong', $notation, self::REF_MAX_LENGTH);
 			return $result;
