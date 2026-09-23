@@ -55,6 +55,26 @@ class SalaryImportValidatorTest extends TestCase
 		$this->assertEquals('2024-01-15', $result);
 	}
 
+	public function testParseExcelDateTextDayFirst()
+	{
+		$this->assertEquals('2026-08-05', $this->validator->parseExcelDate('05/08/2026'));
+		$this->assertEquals('2026-08-31', $this->validator->parseExcelDate('31/08/2026'));
+		$this->assertEquals('2026-08-31', $this->validator->parseExcelDate('31.08.2026'));
+		$this->assertEquals('2026-08-05', $this->validator->parseExcelDate(' 5-8-2026 '));
+		$this->assertFalse($this->validator->parseExcelDate('31/02/2026'));
+	}
+
+	public function testParseExcelDateNumericText()
+	{
+		$this->assertEquals('2024-01-01', $this->validator->parseExcelDate('45292'));
+	}
+
+	public function testFormatDateForDisplayText()
+	{
+		$this->assertEquals('05/08/2026', $this->validator->formatDateForDisplay('05/08/2026'));
+		$this->assertEquals('15/01/2024', $this->validator->formatDateForDisplay('2024-01-15'));
+	}
+
 	public function testParseExcelDateEmpty()
 	{
 		$this->assertFalse($this->validator->parseExcelDate(null));
@@ -110,6 +130,17 @@ class SalaryImportValidatorTest extends TestCase
 	public function testParseAmountWithSpaces()
 	{
 		$this->assertEquals(1500.50, $this->validator->parseAmount('1 500,50'));
+	}
+
+	public function testParseAmountTextWithThousandsSeparator()
+	{
+		$this->assertEquals(1234.50, $this->validator->parseAmount("1'234.50"));
+		$this->assertEquals(1234.50, $this->validator->parseAmount("1\xE2\x80\x99234.50"));
+		$this->assertEquals(1234.50, $this->validator->parseAmount('1.234,50'));
+		$this->assertEquals(1234.50, $this->validator->parseAmount('1,234.50'));
+		$this->assertEquals(1234.50, $this->validator->parseAmount("1\xC2\xA0234,50"));
+		$this->assertEquals(1234.50, $this->validator->parseAmount("1\xE2\x80\xAF234,50"));
+		$this->assertEquals(1234.50, $this->validator->parseAmount(' 1234.50 '));
 	}
 
 	public function testParseAmountZero()

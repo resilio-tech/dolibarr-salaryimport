@@ -100,6 +100,10 @@ class SalaryImportValidator
 
 		// If it's already a string date, try to parse it
 		if (is_string($excelDate) && !is_numeric($excelDate)) {
+			$excelDate = trim($excelDate);
+			if (preg_match('/^(\d{1,2})[.\/-](\d{1,2})[.\/-](\d{4})$/', $excelDate, $m)) {
+				return checkdate((int) $m[2], (int) $m[1], (int) $m[3]) ? sprintf('%04d-%02d-%02d', $m[3], $m[2], $m[1]) : false;
+			}
 			$timestamp = strtotime($excelDate);
 			if ($timestamp !== false) {
 				return date('Y-m-d', $timestamp);
@@ -128,26 +132,12 @@ class SalaryImportValidator
 	 */
 	public function formatDateForDisplay($excelDate)
 	{
-		if (empty($excelDate)) {
+		$date = $this->parseExcelDate($excelDate);
+		if ($date === false) {
 			return false;
 		}
 
-		// If it's already a string date, try to parse it
-		if (is_string($excelDate) && !is_numeric($excelDate)) {
-			$timestamp = strtotime($excelDate);
-			if ($timestamp !== false) {
-				return date('d/m/Y', $timestamp);
-			}
-			return false;
-		}
-
-		$unixTimestamp = ($excelDate - 25569) * 86400;
-
-		if ($unixTimestamp < 0) {
-			return false;
-		}
-
-		return date('d/m/Y', $unixTimestamp);
+		return date('d/m/Y', strtotime($date));
 	}
 
 	/**
@@ -167,11 +157,13 @@ class SalaryImportValidator
 			return 0.0;
 		}
 
-		// Convert comma to dot for decimal separator
-		$amount = str_replace(',', '.', (string) $amount);
+		$amount = str_replace(array(' ', "\xC2\xA0", "\xE2\x80\xAF", "'", "\xE2\x80\x99"), '', trim((string) $amount));
 
-		// Remove spaces
-		$amount = str_replace(' ', '', $amount);
+		if (strpos($amount, ',') !== false && strpos($amount, '.') !== false) {
+			$thousands = strrpos($amount, ',') > strrpos($amount, '.') ? '.' : ',';
+			$amount = str_replace($thousands, '', $amount);
+		}
+		$amount = str_replace(',', '.', $amount);
 
 		if (!is_numeric($amount)) {
 			return false;
