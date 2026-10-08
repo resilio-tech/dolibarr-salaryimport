@@ -89,6 +89,12 @@ if (!isModEnabled('salaryimport')) {
 if (!$user->hasRight('salaryimport', 'import', 'read')) {
 	accessforbidden();
 }
+if (!$user->hasRight('salaries', 'write') || !$user->hasRight('banque', 'modifier')) {
+	accessforbidden();
+}
+if ($_SERVER['REQUEST_METHOD'] !== 'POST' || $action !== 'confirm') {
+	accessforbidden();
+}
 
 /*
  * View

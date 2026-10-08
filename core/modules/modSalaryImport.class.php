@@ -272,7 +272,7 @@ class modSalaryImport extends DolibarrModules
 			'langs'=>'salaryimport@salaryimport',
 			'position'=>1100 + $r,
 			'enabled'=>'isModEnabled("salaryimport")',
-			'perms'=>'$user->hasRight("salaryimport", "import", "read")',
+			'perms'=>'$user->hasRight("salaryimport", "import", "read") && $user->hasRight("salaries", "write") && $user->hasRight("banque", "modifier")',
 			'target'=>'',
 			'user'=>2,
 		);
