@@ -102,7 +102,12 @@ llxHeader("", $langs->trans("SalaryImportArea"));
 print load_fiche_titre($langs->trans("SalaryImportStep3"), '', 'salaryimport.png@salaryimport');
 
 try {
-	$t_data = GETPOST('t_data', 'array');
+	$importKey = GETPOST('import_key', 'aZ09');
+	$t_data = array();
+	if ($importKey !== '' && isset($_SESSION['salaryimport_preview']['key']) && $_SESSION['salaryimport_preview']['key'] === $importKey) {
+		$t_data = $_SESSION['salaryimport_preview']['rows'];
+	}
+	unset($_SESSION['salaryimport_preview']);
 
 	if (empty($t_data)) {
 		throw new Exception($langs->trans("NoDataToImport"));
@@ -134,8 +139,6 @@ try {
 	print '</tr>';
 
 	foreach ($t_data as $row) {
-		// $t_data comes from user-submitted form fields, so any key may be absent.
-		// Default every accessed field to avoid PHP notices breaking the page.
 		$nominal = isset($row['amount_nominal']) ? $row['amount_nominal'] : '';
 		$currency = isset($row['account_currency']) ? $row['account_currency'] : '';
 

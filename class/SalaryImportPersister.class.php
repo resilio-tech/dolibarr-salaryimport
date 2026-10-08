@@ -523,6 +523,15 @@ class SalaryImportPersister
 			return -1;
 		}
 
+		$workDir = realpath(DOL_DATA_ROOT.'/salaryimport');
+		$realPdfPath = realpath($pdfPath);
+		if ($workDir === false || $realPdfPath === false || strpos($realPdfPath, $workDir.DIRECTORY_SEPARATOR) !== 0) {
+			dol_syslog("SalaryImportPersister::movePdfToSalary - PDF file outside the import directory: ".$pdfPath." for salary ".$salaryId, LOG_WARNING);
+			$this->errors[] = $langs->trans('ErrorPdfNotFound', basename($pdfPath));
+			return -1;
+		}
+		$pdfPath = $realPdfPath;
+
 		// Dolibarr Salary::fetch() sets ref = rowid, so directory uses rowid.
 		// Use the module dir_output so the path stays correct under multicompany (entity >= 2).
 		// Fall back to the default path if the salaries module object is not available.

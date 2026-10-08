@@ -195,17 +195,13 @@ try {
 	print dol_get_fiche_end();
 
 	// Build confirmation form
-	$formData = $service->serializeForForm();
+	$importKey = bin2hex(random_bytes(16));
+	$_SESSION['salaryimport_preview'] = array('key' => $importKey, 'rows' => $service->serializeForForm());
 
 	print '<form method="POST" action="'.dol_buildpath('/custom/salaryimport/salaryimportconfirm.php', 1).'" enctype="multipart/form-data">';
 	print '<input type="hidden" name="token" value="'.newToken().'">';
 	print '<input type="hidden" name="action" value="confirm">';
-
-	foreach ($formData as $index => $row) {
-		foreach ($row as $key => $value) {
-			print '<input type="hidden" name="t_data['.$index.']['.$key.']" value="'.htmlspecialchars($value).'">';
-		}
-	}
+	print '<input type="hidden" name="import_key" value="'.$importKey.'">';
 
 	print '<div class="center">';
 	print '<input type="submit" class="button" value="'.$langs->trans("ConfirmImport").'">';

@@ -291,6 +291,41 @@ class SalaryImportPersisterTest extends TestCase
 	}
 
 	/**
+	 * Verify that movePdfToSalary only moves files located under the import work directory
+	 */
+	public function testMovePdfToSalaryRefusesFilesOutsideWorkDir()
+	{
+		$sourceFile = dirname(__FILE__).'/../../../class/SalaryImportPersister.class.php';
+		$source = file_get_contents($sourceFile);
+
+		$pattern = '/function movePdfToSalary\([^)]+\)\s*\{([\s\S]+?)\n\t\}/';
+		preg_match($pattern, $source, $matches);
+		$methodBody = $matches[1];
+
+		$this->assertStringContainsString("realpath(DOL_DATA_ROOT.'/salaryimport')", $methodBody, 'Should resolve the import work directory');
+		$this->assertStringContainsString('realpath($pdfPath)', $methodBody, 'Should resolve the PDF path');
+		$this->assertStringContainsString('strpos($realPdfPath, $workDir.DIRECTORY_SEPARATOR) !== 0', $methodBody, 'Should refuse a PDF outside the work directory');
+
+		$checkPos = strpos($methodBody, 'strpos($realPdfPath');
+		$movePos = strpos($methodBody, 'dol_move(');
+		$this->assertLessThan($movePos, $checkPos, 'The directory check should run before the move');
+	}
+
+	/**
+	 * Verify that the confirmation page reads the rows from the session, not from the request
+	 */
+	public function testConfirmPageReadsRowsFromSession()
+	{
+		$confirm = file_get_contents(dirname(__FILE__).'/../../../salaryimportconfirm.php');
+		$preview = file_get_contents(dirname(__FILE__).'/../../../salaryimportfile.php');
+
+		$this->assertStringNotContainsString("GETPOST('t_data'", $confirm, 'Rows must not come from the request');
+		$this->assertStringContainsString("\$_SESSION['salaryimport_preview']['rows']", $confirm, 'Rows should come from the session');
+		$this->assertStringNotContainsString('name="t_data[', $preview, 'The preview form must not carry the rows');
+		$this->assertStringContainsString("\$_SESSION['salaryimport_preview'] = ", $preview, 'The preview should store the rows in the session');
+	}
+
+	/**
 	 * Verify that movePdfToSalary logs warning when file not found
 	 */
 	public function testMovePdfToSalaryLogsWarningWhenFileNotFound()
