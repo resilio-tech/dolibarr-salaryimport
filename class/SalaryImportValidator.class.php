@@ -101,8 +101,9 @@ class SalaryImportValidator
 		// If it's already a string date, try to parse it
 		if (is_string($excelDate) && !is_numeric($excelDate)) {
 			$excelDate = trim($excelDate);
-			if (preg_match('/^(\d{1,2})[.\/-](\d{1,2})[.\/-](\d{4})$/', $excelDate, $m)) {
-				return checkdate((int) $m[2], (int) $m[1], (int) $m[3]) ? sprintf('%04d-%02d-%02d', $m[3], $m[2], $m[1]) : false;
+			if (preg_match('/^(\d{1,2})[.\/-](\d{1,2})[.\/-](\d{4}|\d{2})(\s+\d{1,2}:\d{2}(:\d{2})?)?$/', $excelDate, $m)) {
+				$year = strlen($m[3]) == 2 ? 2000 + (int) $m[3] : (int) $m[3];
+				return checkdate((int) $m[2], (int) $m[1], $year) ? sprintf('%04d-%02d-%02d', $year, $m[2], $m[1]) : false;
 			}
 			$timestamp = strtotime($excelDate);
 			if ($timestamp !== false) {
@@ -157,7 +158,12 @@ class SalaryImportValidator
 			return 0.0;
 		}
 
+		$isText = is_string($amount);
 		$amount = str_replace(array(' ', "\xC2\xA0", "\xE2\x80\xAF", "'", "\xE2\x80\x99"), '', trim((string) $amount));
+
+		if ($isText && preg_match('/^-?\d+[.,]\d{3}$/', $amount)) {
+			return false;
+		}
 
 		if (strpos($amount, ',') !== false && strpos($amount, '.') !== false) {
 			$thousands = strrpos($amount, ',') > strrpos($amount, '.') ? '.' : ',';

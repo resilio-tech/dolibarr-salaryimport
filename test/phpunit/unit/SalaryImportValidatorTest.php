@@ -64,6 +64,14 @@ class SalaryImportValidatorTest extends TestCase
 		$this->assertFalse($this->validator->parseExcelDate('31/02/2026'));
 	}
 
+	public function testParseExcelDateTextShortYearAndTime()
+	{
+		$this->assertEquals('2026-08-05', $this->validator->parseExcelDate('05/08/26'));
+		$this->assertEquals('2026-08-05', $this->validator->parseExcelDate('05/08/2026 00:00'));
+		$this->assertEquals('2026-08-05', $this->validator->parseExcelDate('05.08.26 14:30:00'));
+		$this->assertFalse($this->validator->parseExcelDate('31/02/26'));
+	}
+
 	public function testParseExcelDateNumericText()
 	{
 		$this->assertEquals('2024-01-01', $this->validator->parseExcelDate('45292'));
@@ -141,6 +149,14 @@ class SalaryImportValidatorTest extends TestCase
 		$this->assertEquals(1234.50, $this->validator->parseAmount("1\xC2\xA0234,50"));
 		$this->assertEquals(1234.50, $this->validator->parseAmount("1\xE2\x80\xAF234,50"));
 		$this->assertEquals(1234.50, $this->validator->parseAmount(' 1234.50 '));
+	}
+
+	public function testParseAmountTextAmbiguousSeparator()
+	{
+		$this->assertFalse($this->validator->parseAmount('5.000'));
+		$this->assertFalse($this->validator->parseAmount('1,234'));
+		$this->assertEquals(1.234, $this->validator->parseAmount(1.234));
+		$this->assertEquals(5000.0, $this->validator->parseAmount("5'000"));
 	}
 
 	public function testParseAmountZero()
